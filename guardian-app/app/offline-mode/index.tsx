@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, SafeAreaView } from 'react-native';
 import { Colors, Theme } from '../../constants/theme';
 import GlassCard from '../../components/ui/GlassCard';
 import GlowText from '../../components/ui/GlowText';
-import NeonButton from '../../components/ui/NeonButton';
+import ActionButton from '../../components/ui/ActionButton';
 import { WifiOff, ShieldCheck, Clock, MapPin } from 'lucide-react-native';
 
 const STATUS_ITEMS = [
@@ -36,7 +36,7 @@ export default function OfflineModeScreen() {
           ))}
         </View>
 
-        <NeonButton
+        <ActionButton
           title="TRIGGER OFFLINE SOS"
           variant="danger"
           onPress={() => {}}

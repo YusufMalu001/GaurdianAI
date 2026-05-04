@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Shield, Map, Activity, User, Flame } from 'lucide-react-native';
+import { Shield, Map, Bell, User, Flame } from 'lucide-react-native';
 import { Colors, Theme } from '../../constants/theme';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 
@@ -26,12 +26,12 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: Colors.secondary,
-          borderTopColor: 'rgba(255,255,255,0.05)',
+          borderTopColor: Colors.cardBorder,
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: Colors.cyan,
+        tabBarActiveTintColor: Colors.teal,
         tabBarInactiveTintColor: Colors.white60,
       }}
     >
@@ -69,8 +69,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="heatmap"
         options={{
-          title: 'Heatmap',
-          tabBarIcon: ({ color }) => <Activity color={color} size={24} />,
+          title: 'Alerts',
+          tabBarIcon: ({ color }) => <Bell color={color} size={24} />,
         }}
       />
 
@@ -104,9 +104,9 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: Colors.primary,
     shadowColor: Colors.danger,
-    shadowOpacity: 0.8,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   }
 });

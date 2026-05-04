@@ -5,10 +5,8 @@ import {
   StyleSheet, 
   Animated, 
   PanResponder, 
-  Dimensions 
 } from 'react-native';
 import { Colors, Theme } from '../../constants/theme';
-import GlowText from '../ui/GlowText';
 
 interface SOSButtonProps {
   onTrigger: () => void;
@@ -25,13 +23,13 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1500,
+          toValue: 1.08,
+          duration: 2000,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 1500,
+          duration: 2000,
           useNativeDriver: true,
         }),
       ])
@@ -44,7 +42,7 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
       onPanResponderGrant: () => {
         // Shrink button slightly
         Animated.spring(scaleAnim, {
-          toValue: 0.9,
+          toValue: 0.95,
           useNativeDriver: true,
         }).start();
 
@@ -84,7 +82,7 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
   // For the progress circle outline
   const borderColor = progressAnim.interpolate({
     inputRange: [0, 100],
-    outputRange: ['rgba(255, 59, 59, 0.2)', Colors.danger]
+    outputRange: ['rgba(239, 68, 68, 0.1)', Colors.danger]
   });
 
   return (
@@ -93,8 +91,8 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
         style={[
           styles.pulseRing, 
           { 
-            width: size * 1.3, 
-            height: size * 1.3, 
+            width: size * 1.25, 
+            height: size * 1.25, 
             transform: [{ scale: pulseAnim }] 
           }
         ]} 
@@ -113,9 +111,9 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
           }
         ]}
       >
-        <GlowText style={styles.text} color={Colors.white} glowColor={Colors.danger}>
+        <Text style={styles.text}>
           SOS
-        </GlowText>
+        </Text>
         <Text style={styles.subtext}>HOLD 3s</Text>
       </Animated.View>
     </View>
@@ -130,7 +128,7 @@ const styles = StyleSheet.create({
   pulseRing: {
     position: 'absolute',
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 59, 59, 0.1)',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
   button: {
     backgroundColor: Colors.danger,
@@ -138,17 +136,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 6,
     shadowColor: Colors.danger,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   text: {
     fontSize: 42,
+    fontWeight: '700',
+    color: Colors.white,
     letterSpacing: 2,
   },
   subtext: {
-    color: Colors.white60,
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,

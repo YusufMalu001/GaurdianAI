@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
-import NeonButton from '../../components/ui/NeonButton';
+import ActionButton from '../../components/ui/ActionButton';
 import GlowText from '../../components/ui/GlowText';
 import { Map } from 'lucide-react-native';
 
@@ -33,13 +33,13 @@ export default function OnboardingScreen2() {
           </View>
           
           <View style={styles.buttons}>
-            <NeonButton 
+            <ActionButton 
               title="BACK" 
               variant="secondary"
               style={{ flex: 1, marginRight: Theme.spacing.md }}
               onPress={() => router.back()} 
             />
-            <NeonButton 
+            <ActionButton 
               title="NEXT" 
               style={{ flex: 1 }}
               onPress={() => router.push('/onboarding/screen3')} 

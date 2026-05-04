@@ -5,7 +5,8 @@ import {
   StyleSheet, 
   Animated, 
   ViewStyle, 
-  TextStyle 
+  TextStyle,
+  StyleProp
 } from 'react-native';
 import { Colors, Theme } from '../../constants/theme';
 
@@ -13,9 +14,11 @@ interface ActionButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'danger';
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  buttonStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   icon?: React.ReactNode;
+  layout?: 'horizontal' | 'vertical';
 }
 
 export default function ActionButton({ 
@@ -23,8 +26,10 @@ export default function ActionButton({
   onPress, 
   variant = 'primary', 
   style, 
+  buttonStyle,
   textStyle,
-  icon
+  icon,
+  layout = 'horizontal'
 }: ActionButtonProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -48,19 +53,16 @@ export default function ActionButton({
         return {
           container: styles.secondaryContainer,
           text: styles.secondaryText,
-          shadow: Theme.shadows.neonPink,
         };
       case 'danger':
         return {
           container: styles.dangerContainer,
           text: styles.dangerText,
-          shadow: { ...Theme.shadows.neonPink, shadowColor: Colors.danger },
         };
       default:
         return {
           container: styles.primaryContainer,
           text: styles.primaryText,
-          shadow: Theme.shadows.neonPurple,
         };
     }
   };
@@ -74,9 +76,18 @@ export default function ActionButton({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={onPress}
-        style={[styles.button, currentVariant.container, currentVariant.shadow]}
+        style={[
+          styles.button, 
+          layout === 'vertical' && styles.verticalButton,
+          currentVariant.container, 
+          buttonStyle
+        ]}
       >
-        {icon && <Animated.View style={styles.iconContainer}>{icon}</Animated.View>}
+        {icon && (
+          <Animated.View style={layout === 'vertical' ? styles.iconContainerVertical : styles.iconContainer}>
+            {icon}
+          </Animated.View>
+        )}
         <Text style={[styles.text, currentVariant.text, textStyle]}>{title}</Text>
       </TouchableOpacity>
     </Animated.View>
@@ -90,40 +101,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Theme.spacing.md,
     paddingHorizontal: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.pill,
+    borderRadius: Theme.borderRadius.md,
     minHeight: 56,
   },
   primaryContainer: {
     backgroundColor: Colors.purple,
-    borderWidth: 1,
-    borderColor: Colors.glowPurple,
   },
   secondaryContainer: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.pink,
+    borderColor: Colors.cardBorder,
   },
   dangerContainer: {
     backgroundColor: Colors.danger,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 59, 0.5)',
   },
   text: {
     fontSize: Theme.typography.sizes.md,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   primaryText: {
     color: Colors.white,
   },
   secondaryText: {
-    color: Colors.pink,
+    color: Colors.white,
   },
   dangerText: {
     color: Colors.white,
   },
   iconContainer: {
     marginRight: Theme.spacing.sm,
+  },
+  iconContainerVertical: {
+    marginBottom: Theme.spacing.sm,
+  },
+  verticalButton: {
+    flexDirection: 'column',
   },
 });

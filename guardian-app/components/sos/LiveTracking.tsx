@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import GlassCard from '../ui/GlassCard';
-import GlowText from '../ui/GlowText';
 import { Colors, Theme } from '../../constants/theme';
 import { Navigation, Mic, Radio } from 'lucide-react-native';
 import gpsTracker from '../../services/location/gpsTracker';
@@ -15,10 +14,10 @@ export default function LiveTracking() {
   }, []);
 
   return (
-    <GlassCard variant="glowCyan" style={styles.card}>
-      <GlowText style={styles.title} color={Colors.cyan} glowColor={Colors.cyan}>LIVE TRACKING</GlowText>
+    <GlassCard style={styles.card}>
+      <Text style={styles.title}>LIVE TRACKING</Text>
       <View style={styles.row}>
-        <Navigation color={Colors.cyan} size={16} />
+        <Navigation color={Colors.teal} size={16} />
         <Text style={styles.coord}>{position.lat.toFixed(5)}, {position.lng.toFixed(5)}</Text>
       </View>
       <View style={styles.indicators}>
@@ -39,7 +38,7 @@ export default function LiveTracking() {
 
 const styles = StyleSheet.create({
   card: { padding: Theme.spacing.md },
-  title: { fontSize: 13, letterSpacing: 2, marginBottom: Theme.spacing.sm },
+  title: { color: Colors.teal, fontSize: 13, letterSpacing: 1.5, fontWeight: '600', marginBottom: Theme.spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: Theme.spacing.sm },
   coord: { color: Colors.white, fontFamily: 'monospace', marginLeft: 6, fontSize: 13 },
   indicators: { flexDirection: 'row', gap: Theme.spacing.sm },

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
-import NeonButton from '../../components/ui/NeonButton';
+import ActionButton from '../../components/ui/ActionButton';
 import GlowText from '../../components/ui/GlowText';
 import { ShieldPlus } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
@@ -115,7 +115,7 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <NeonButton 
+            <ActionButton 
               title="CREATE ACCOUNT" 
               onPress={handleRegister} 
               variant="secondary"

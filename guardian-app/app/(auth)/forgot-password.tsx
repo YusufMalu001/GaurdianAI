@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
-import NeonButton from '../../components/ui/NeonButton';
+import ActionButton from '../../components/ui/ActionButton';
 import GlowText from '../../components/ui/GlowText';
 import { Shield, ArrowLeft } from 'lucide-react-native';
 
@@ -39,12 +39,12 @@ export default function ForgotPasswordScreen() {
                 autoCapitalize="none"
               />
             </View>
-            <NeonButton title="SEND RESET LINK" onPress={() => setSent(true)} style={styles.btn} />
+            <ActionButton title="SEND RESET LINK" onPress={() => setSent(true)} style={styles.btn} />
           </>
         )}
 
         {sent && (
-          <NeonButton title="BACK TO LOGIN" variant="secondary" onPress={() => router.replace('/(auth)/login')} style={styles.btn} />
+          <ActionButton title="BACK TO LOGIN" variant="secondary" onPress={() => router.replace('/(auth)/login')} style={styles.btn} />
         )}
       </View>
     </SafeAreaView>

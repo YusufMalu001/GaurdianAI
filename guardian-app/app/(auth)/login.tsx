@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
-import NeonButton from '../../components/ui/NeonButton';
+import ActionButton from '../../components/ui/ActionButton';
 import GlowText from '../../components/ui/GlowText';
 import { Shield, Fingerprint } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
@@ -96,7 +96,7 @@ export default function LoginScreen() {
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          <NeonButton 
+          <ActionButton 
             title="SYSTEM OVERRIDE / LOGIN" 
             onPress={handleLogin} 
             style={styles.loginBtn}

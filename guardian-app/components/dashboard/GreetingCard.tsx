@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import GlassCard from '../ui/GlassCard';
-import GlowText from '../ui/GlowText';
 import { Colors, Theme } from '../../constants/theme';
 import { User } from 'lucide-react-native';
 
@@ -11,14 +10,14 @@ export default function GreetingCard({ name, hour = new Date().getHours() }: Pro
   const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
   return (
-    <GlassCard variant="glowPurple">
+    <GlassCard>
       <View style={styles.row}>
         <View style={styles.avatar}>
-          <User color={Colors.purple} size={28} />
+          <User color={Colors.teal} size={28} />
         </View>
         <View>
           <Text style={styles.greet}>{greeting},</Text>
-          <GlowText style={styles.name} glowColor={Colors.purple}>{name}</GlowText>
+          <Text style={styles.name}>{name}</Text>
         </View>
       </View>
     </GlassCard>
@@ -29,11 +28,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: 'rgba(123,47,247,0.15)',
+    backgroundColor: 'rgba(20, 184, 166, 0.1)',
     alignItems: 'center', justifyContent: 'center',
     marginRight: Theme.spacing.md,
-    borderWidth: 1, borderColor: Colors.glowPurple,
+    borderWidth: 1, borderColor: 'rgba(20, 184, 166, 0.3)',
   },
-  greet: { color: Colors.white60, fontSize: 13 },
-  name: { fontSize: Theme.typography.sizes.xl, letterSpacing: 1 },
+  greet: { color: Colors.white60, fontSize: 13, marginBottom: 2 },
+  name: { color: Colors.white, fontSize: Theme.typography.sizes.lg, fontWeight: '600' },
 });

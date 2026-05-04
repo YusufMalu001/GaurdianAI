@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Text, SafeAreaView, TouchableOpacity, Animated } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Text, SafeAreaView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
+import { Audio } from 'expo-av';
 import { Colors, Theme } from '../../constants/theme';
 import SOSButton from '../../components/sos/SOSButton';
-import GlowText from '../../components/ui/GlowText';
-import { X, Mic, Video, Navigation, ShieldAlert } from 'lucide-react-native';
+import ActionButton from '../../components/ui/ActionButton';
+import { X, Mic, Navigation, ShieldAlert } from 'lucide-react-native';
 import { emergencyApi } from '../../services/api/emergencyApi';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
@@ -17,19 +18,57 @@ export default function EmergencyScreen() {
   const { user, token } = useAuthStore();
   const { trustedContacts } = useUserStore();
   const { location } = useLocation();
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+
+  async function startRecording() {
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording: newRecording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(newRecording);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+    }
+  }
+
+  async function stopRecording() {
+    if (!recording) return;
+    try {
+      await recording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      const uri = recording.getURI();
+      console.log('Recording stopped and stored at', uri);
+    } catch (error) {
+      console.error('Failed to stop recording', error);
+    }
+    setRecording(null);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (recording) {
+        recording.stopAndUnloadAsync().catch(console.error);
+      }
+    };
+  }, [recording]);
 
   const handleTrigger = () => {
     setTriggered(true);
   };
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (triggered && countdown > 0) {
       timer = setTimeout(() => setCountdown(c => c - 1), 1000);
     }
 
     // When countdown reaches 0, fire the real API call
     if (triggered && countdown === 0 && !alertId) {
+      startRecording();
       const lat = location?.lat ?? 28.6139;
       const lng = location?.lng ?? 77.209;
       emergencyApi.trigger(user?.id ?? 'unknown', lat, lng, token ?? '')
@@ -67,31 +106,34 @@ export default function EmergencyScreen() {
           {triggered ? (
             <View style={styles.activeState}>
               <ShieldAlert color={Colors.white} size={80} style={styles.alertIcon} />
-              <GlowText style={styles.activeTitle} color={Colors.white} glowColor={Colors.danger}>
+              <Text style={styles.activeTitle}>
                 EMERGENCY ALERT ACTIVE
-              </GlowText>
+              </Text>
               
               {countdown > 0 ? (
                 <>
                   <Text style={styles.desc}>Dispatching authorities in...</Text>
                   <Text style={styles.countdown}>{countdown}</Text>
-                  <TouchableOpacity 
-                    style={styles.cancelBtn}
+                  <ActionButton 
+                    title="CANCEL ALARM"
+                    variant="secondary"
                     onPress={() => {
                       if (alertId) {
                         emergencyApi.cancel(alertId, token ?? '').catch(console.error);
                       }
+                      stopRecording();
                       setTriggered(false);
                       setCountdown(5);
                       setAlertId(null);
                     }}
-                  >
-                    <Text style={styles.cancelText}>CANCEL ALARM</Text>
-                  </TouchableOpacity>
+                    buttonStyle={styles.cancelBtn}
+                    textStyle={styles.cancelText}
+                  />
                 </>
               ) : (
                 <>
-                  <Text style={styles.desc}>Live location & audio sharing with Police and Trusted Contacts is ACTIVE.</Text>
+                  <Text style={styles.reassuringText}>Help is being alerted.</Text>
+                  <Text style={styles.desc}>Live location & audio sharing with Police and {trustedContacts.map(c => c.name).join(', ') || 'Trusted Contacts'} is ACTIVE.</Text>
                   <View style={styles.streamingIndicators}>
                     <View style={styles.streamPill}>
                       <Mic color={Colors.white} size={16} />
@@ -109,9 +151,9 @@ export default function EmergencyScreen() {
             </View>
           ) : (
             <View style={styles.idleState}>
-              <GlowText style={styles.title} color={Colors.white} glowColor={Colors.danger}>
+              <Text style={styles.title}>
                 EMERGENCY
-              </GlowText>
+              </Text>
               <Text style={styles.desc}>Press and hold to instantly alert authorities and trusted contacts.</Text>
               
               <View style={styles.buttonWrapper}>
@@ -129,10 +171,10 @@ export default function EmergencyScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'rgba(5, 5, 5, 0.95)',
+    backgroundColor: Colors.primary,
   },
   triggeredBg: {
-    backgroundColor: '#300b0b', // Deep red
+    backgroundColor: '#7F1D1D', // Soft deep red
   },
   container: {
     flex: 1,
@@ -157,12 +199,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   title: {
-    fontSize: 48,
-    letterSpacing: 4,
+    fontSize: 42,
+    fontWeight: '700',
+    color: Colors.danger,
+    letterSpacing: 2,
     marginBottom: Theme.spacing.md,
   },
   desc: {
-    color: Colors.white60,
+    color: Colors.white80,
     fontSize: Theme.typography.sizes.md,
     textAlign: 'center',
     paddingHorizontal: Theme.spacing.xl,
@@ -180,7 +224,9 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.xl,
   },
   activeTitle: {
-    fontSize: 32,
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: Theme.spacing.md,
   },
@@ -189,9 +235,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.white,
     marginVertical: Theme.spacing.xl,
-    textShadowColor: Colors.danger,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
+  },
+  reassuringText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.white,
+    marginBottom: Theme.spacing.md,
+    textAlign: 'center',
   },
   cancelBtn: {
     paddingVertical: Theme.spacing.md,
@@ -214,17 +264,17 @@ const styles = StyleSheet.create({
   streamPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     paddingVertical: Theme.spacing.sm,
     paddingHorizontal: Theme.spacing.md,
     borderRadius: Theme.borderRadius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   streamText: {
     color: Colors.white,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     marginLeft: Theme.spacing.sm,
     marginRight: Theme.spacing.sm,
   },

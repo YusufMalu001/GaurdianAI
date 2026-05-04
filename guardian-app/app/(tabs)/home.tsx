@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Text, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, SafeAreaView, TouchableOpacity, Platform } from 'react-native';
+import { WebView } from 'react-native-webview';
+import ActionButton from '../../components/ui/ActionButton';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
 import SafetyScore from '../../components/ui/SafetyScore';
 import GlassCard from '../../components/ui/GlassCard';
-import GlowText from '../../components/ui/GlowText';
-import { Bell, MapPin, Navigation, Video, Mic } from 'lucide-react-native';
+import { Bell, MapPin, Navigation, Flame, Share2 } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useLocation } from '../../hooks/useLocation';
 import { useSafetyScore } from '../../hooks/useSafetyScore';
@@ -18,6 +19,47 @@ export default function HomeScreen() {
   const { location } = useLocation();
   const { score, riskLevel, riskColor } = useSafetyScore();
   const name = user?.name ?? 'Guest';
+  
+  const mapPreviewHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <style>
+        body { margin: 0; padding: 0; background-color: #0F172A; }
+        #map { width: 100vw; height: 100vh; }
+        .leaflet-container { background: #0F172A; }
+        .leaflet-control-container { display: none; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script>
+        var lat = ${location?.lat ?? 28.6139};
+        var lng = ${location?.lng ?? 77.209};
+        var map = L.map('map', { 
+          zoomControl: false,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false
+        }).setView([lat, lng], 15);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; CARTO',
+          subdomains: 'abcd',
+          maxZoom: 20
+        }).addTo(map);
+
+        var markerHtml = '<div style="background-color: #10B981; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); border: 2px solid white;"></div>';
+        var customIcon = L.divIcon({ html: markerHtml, className: 'custom-soft-marker', iconSize: [16, 16] });
+        L.marker([lat, lng], { icon: customIcon }).addTo(map);
+      </script>
+    </body>
+    </html>
+  `;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -28,7 +70,7 @@ export default function HomeScreen() {
           <View style={{ flex: 1 }}>
             <GreetingCard name={name} />
           </View>
-          <TouchableOpacity onPress={() => router.push('/notifications/')} style={styles.bellWrapper}>
+          <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.bellWrapper}>
             <View style={styles.bellContainer}>
               <Bell color={Colors.white} size={24} />
               <View style={styles.notificationDot} />
@@ -37,9 +79,9 @@ export default function HomeScreen() {
         </View>
 
         {/* Status Card */}
-        <GlassCard variant="glowCyan" style={styles.statusCard}>
+        <GlassCard style={styles.statusCard}>
           <View style={styles.statusHeader}>
-            <MapPin color={Colors.cyan} size={16} />
+            <MapPin color={Colors.teal} size={16} />
             <Text style={styles.locationText}>
               {location ? `Current: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : 'Detecting location...'}
             </Text>
@@ -55,28 +97,56 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Map Preview Snippet */}
+          <View style={styles.mapPreviewContainer}>
+            {Platform.OS === 'web' ? (
+              <iframe 
+                srcDoc={mapPreviewHtml} 
+                style={{ width: '100%', height: '100%', border: 'none' }} 
+                title="Map Preview"
+              />
+            ) : (
+              <WebView source={{ html: mapPreviewHtml }} style={{ flex: 1 }} scrollEnabled={false} />
+            )}
+          </View>
         </GlassCard>
 
         {/* Quick Actions */}
         <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
         <View style={styles.actionsGrid}>
-          <TouchableOpacity 
-            style={[styles.actionBtn, { borderColor: Colors.purple }]}
+          <ActionButton 
+            title="Safe Route"
+            variant="secondary"
+            layout="vertical"
+            icon={<Navigation color={Colors.teal} size={28} />}
             onPress={() => router.push('/(tabs)/map')}
-          >
-            <Navigation color={Colors.purple} size={28} />
-            <Text style={styles.actionText}>Safe Route</Text>
-          </TouchableOpacity>
+            style={styles.actionBtnWrapper}
+            buttonStyle={[styles.actionBtnInner, { borderColor: Colors.teal }]}
+            textStyle={styles.actionText}
+          />
           
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: Colors.pink }]}>
-            <Video color={Colors.pink} size={28} />
-            <Text style={styles.actionText}>Fake Call</Text>
-          </TouchableOpacity>
+          <ActionButton 
+            title="SOS"
+            variant="secondary"
+            layout="vertical"
+            icon={<Flame color={Colors.danger} size={28} />}
+            onPress={() => router.push('/sos/emergency')}
+            style={styles.actionBtnWrapper}
+            buttonStyle={[styles.actionBtnInner, { borderColor: Colors.danger }]}
+            textStyle={styles.actionText}
+          />
           
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: Colors.cyan }]}>
-            <Mic color={Colors.cyan} size={28} />
-            <Text style={styles.actionText}>Record</Text>
-          </TouchableOpacity>
+          <ActionButton 
+            title="Share"
+            variant="secondary"
+            layout="vertical"
+            icon={<Share2 color={Colors.purple} size={28} />}
+            onPress={() => {}}
+            style={styles.actionBtnWrapper}
+            buttonStyle={[styles.actionBtnInner, { borderColor: Colors.purple }]}
+            textStyle={styles.actionText}
+          />
         </View>
 
         {/* Nearby Alerts */}
@@ -109,14 +179,6 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.xl,
     marginTop: Theme.spacing.md,
   },
-  greeting: {
-    color: Colors.white60,
-    fontSize: Theme.typography.sizes.md,
-  },
-  name: {
-    fontSize: Theme.typography.sizes.xl,
-    letterSpacing: 1,
-  },
   bellWrapper: {
     marginLeft: Theme.spacing.md,
   },
@@ -125,7 +187,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: Theme.borderRadius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: Colors.cardBorder,
   },
   notificationDot: {
     position: 'absolute',
@@ -136,7 +198,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: Colors.danger,
     shadowColor: Colors.danger,
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.4,
     shadowRadius: 5,
   },
   statusCard: {
@@ -148,10 +210,10 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.lg,
   },
   locationText: {
-    color: Colors.cyan,
+    color: Colors.white80,
     marginLeft: Theme.spacing.sm,
     fontSize: Theme.typography.sizes.sm,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   scoreContainer: {
     flexDirection: 'row',
@@ -162,10 +224,9 @@ const styles = StyleSheet.create({
     marginLeft: Theme.spacing.lg,
   },
   riskLevel: {
-    color: Colors.success,
     fontSize: Theme.typography.sizes.lg,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontWeight: '700',
+    letterSpacing: 0.5,
     marginBottom: Theme.spacing.xs,
   },
   riskDesc: {
@@ -174,30 +235,43 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   sectionTitle: {
-    color: Colors.white,
-    fontSize: Theme.typography.sizes.md,
-    fontWeight: '700',
-    letterSpacing: 2,
+    color: Colors.white60,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.5,
     marginBottom: Theme.spacing.md,
+  },
+  mapPreviewContainer: {
+    height: 120,
+    marginTop: Theme.spacing.lg,
+    borderRadius: Theme.borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: Colors.secondary,
   },
   actionsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: Theme.spacing.xxl,
   },
-  actionBtn: {
+  actionBtnWrapper: {
     width: '30%',
     aspectRatio: 1,
+  },
+  actionBtnInner: {
+    width: '100%',
+    height: '100%',
     backgroundColor: Colors.card,
     borderRadius: Theme.borderRadius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    minHeight: 0,
   },
   actionText: {
     color: Colors.white,
     fontSize: 12,
-    marginTop: Theme.spacing.sm,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

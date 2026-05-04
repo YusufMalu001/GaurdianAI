@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
-import NeonButton from '../../components/ui/NeonButton';
+import ActionButton from '../../components/ui/ActionButton';
 import GlowText from '../../components/ui/GlowText';
 import { Activity } from 'lucide-react-native';
 
@@ -32,7 +32,7 @@ export default function OnboardingScreen1() {
             <View style={styles.dot} />
           </View>
           
-          <NeonButton 
+          <ActionButton 
             title="NEXT" 
             onPress={() => router.push('/onboarding/screen2')} 
           />
