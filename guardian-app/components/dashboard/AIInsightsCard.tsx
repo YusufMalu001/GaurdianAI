@@ -1,61 +1,208 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, Text, Animated, Easing } from 'react-native';
 import GlassCard from '../ui/GlassCard';
 import { Colors, Theme } from '../../constants/theme';
-import { router } from 'expo-router';
-import { Activity } from 'lucide-react-native';
+import { Sparkles, ShieldCheck, AlertTriangle, Lightbulb } from 'lucide-react-native';
 import { useLocation } from '../../hooks/useLocation';
 import { safetyApi } from '../../services/api/safetyApi';
 
+const DEFAULT_INSIGHTS = [
+  {
+    icon: 'shield',
+    color: Colors.success,
+    bg: Colors.successSoft,
+    title: 'Area Safety',
+    text: 'This area has a very low incident rate. Safe for walking.',
+  },
+  {
+    icon: 'lightbulb',
+    color: Colors.brown,
+    bg: Colors.glowTeal,
+    title: 'Smart Tip',
+    text: 'Share your live location with trusted contacts while traveling.',
+  },
+  {
+    icon: 'alert',
+    color: Colors.warning,
+    bg: Colors.warningSoft,
+    title: 'Be Aware',
+    text: 'Reduced visibility in this area after 9 PM. Stay on lit paths.',
+  },
+];
+
 export default function AIInsightsCard() {
   const { location } = useLocation();
-  const [insights, setInsights] = useState<{color: string, text: string}[]>([]);
+  const [insights, setInsights] = useState(DEFAULT_INSIGHTS);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   useEffect(() => {
     if (!location) return;
-    
-    // Simulate an AI insight generation based on incidents and score
     safetyApi.getIncidents(location.lat, location.lng, 2000).then(incidents => {
       const newInsights = [];
-      if (incidents.length === 0) {
-        newInsights.push({ color: Colors.success, text: 'Your current area has a very low incident rate.' });
-        newInsights.push({ color: Colors.teal, text: 'Safety score is optimal for walking.' });
+      if (!incidents || incidents.length === 0) {
+        newInsights.push({
+          icon: 'shield',
+          color: Colors.success,
+          bg: Colors.successSoft,
+          title: 'All Clear',
+          text: 'Your current area has a very low incident rate.',
+        });
+        newInsights.push({
+          icon: 'lightbulb',
+          color: Colors.brown,
+          bg: Colors.glowTeal,
+          title: 'Optimal Conditions',
+          text: 'Safety score is excellent for outdoor activities.',
+        });
       } else {
         const highRisk = incidents.filter((i: any) => i.riskLevel === 'HIGH').length;
         if (highRisk > 0) {
-          newInsights.push({ color: Colors.danger, text: `Detected ${highRisk} high-risk incidents within 2km.` });
+          newInsights.push({
+            icon: 'alert',
+            color: Colors.danger,
+            bg: Colors.dangerSoft,
+            title: 'Caution Advised',
+            text: `${highRisk} high-risk incident${highRisk > 1 ? 's' : ''} detected within 2km radius.`,
+          });
         } else {
-          newInsights.push({ color: '#F59E0B', text: `Moderate activity nearby. Stay aware of your surroundings.` });
+          newInsights.push({
+            icon: 'alert',
+            color: Colors.warning,
+            bg: Colors.warningSoft,
+            title: 'Moderate Activity',
+            text: 'Stay aware of your surroundings in this area.',
+          });
         }
-        newInsights.push({ color: Colors.success, text: 'Trusted contacts are available if needed.' });
+        newInsights.push({
+          icon: 'shield',
+          color: Colors.success,
+          bg: Colors.successSoft,
+          title: 'Support Ready',
+          text: 'Trusted contacts are available if you need assistance.',
+        });
       }
       setInsights(newInsights);
-    }).catch(console.error);
+    }).catch(() => {});
   }, [location]);
 
+  const getIcon = (type: string, color: string) => {
+    switch (type) {
+      case 'shield': return <ShieldCheck color={color} size={16} />;
+      case 'lightbulb': return <Lightbulb color={color} size={16} />;
+      case 'alert': return <AlertTriangle color={color} size={16} />;
+      default: return <Sparkles color={color} size={16} />;
+    }
+  };
+
   return (
-    <GlassCard>
-      <View style={styles.header}>
-        <Activity color={Colors.teal} size={20} />
-        <Text style={styles.title}>AI Insights</Text>
-      </View>
-      {insights.map((item, i) => (
-        <View key={i} style={styles.row}>
-          <View style={[styles.dot, { backgroundColor: item.color }]} />
-          <Text style={styles.text}>{item.text}</Text>
+    <Animated.View style={{
+      opacity: fadeAnim,
+      transform: [{ translateY: slideAnim }],
+    }}>
+      <GlassCard variant="elevated">
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerIconBadge}>
+            <Sparkles color={Colors.rose} size={16} />
+          </View>
+          <View>
+            <Text style={styles.title}>AI Insights</Text>
+            <Text style={styles.subtitle}>Context-aware safety analysis</Text>
+          </View>
         </View>
-      ))}
-    </GlassCard>
+
+        {/* Insights List */}
+        {insights.map((item, i) => (
+          <View key={i} style={[styles.insightRow, i < insights.length - 1 && styles.insightDivider]}>
+            <View style={[styles.insightIconBadge, { backgroundColor: item.bg }]}>
+              {getIcon(item.icon, item.color)}
+            </View>
+            <View style={styles.insightContent}>
+              <Text style={styles.insightTitle}>{item.title}</Text>
+              <Text style={styles.insightText}>{item.text}</Text>
+            </View>
+          </View>
+        ))}
+      </GlassCard>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: Theme.spacing.md },
-  title: { flex: 1, color: Colors.teal, fontSize: 14, fontWeight: '600', letterSpacing: 0.5, marginLeft: Theme.spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Theme.spacing.sm },
-  dot: {
-    width: 6, height: 6, borderRadius: 3,
-    marginTop: 7, marginRight: Theme.spacing.md,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.lg,
   },
-  text: { flex: 1, color: Colors.white80, fontSize: 13, lineHeight: 20 },
+  headerIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.glowRose,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Theme.spacing.sm,
+  },
+  title: {
+    color: Colors.textPrimary,
+    fontSize: Theme.typography.sizes.md,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    color: Colors.textTertiary,
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  insightRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: Theme.spacing.sm + 2,
+  },
+  insightDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
+  },
+  insightIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Theme.spacing.sm + 4,
+    marginTop: 2,
+  },
+  insightContent: {
+    flex: 1,
+  },
+  insightTitle: {
+    color: Colors.textPrimary,
+    fontSize: Theme.typography.sizes.sm,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  insightText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });

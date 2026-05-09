@@ -59,7 +59,7 @@ export default function RegisterScreen() {
       >
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-            <ShieldPlus color={Colors.pink} size={60} strokeWidth={1.5} />
+            <ShieldPlus color={Colors.purple} size={60} strokeWidth={1.5} />
             <GlowText style={styles.title} color={Colors.white} glowColor={Colors.pink}>
               JOIN GUARDIAN
             </GlowText>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.md,
   },
   label: {
-    color: Colors.pink,
+    color: Colors.purple,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: Colors.cardBorder,
     borderRadius: Theme.borderRadius.md,
     color: Colors.white,
     padding: Theme.spacing.md,

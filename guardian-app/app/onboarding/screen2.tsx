@@ -69,10 +69,10 @@ const styles = StyleSheet.create({
   iconWrapper: {
     marginBottom: Theme.spacing.xxl,
     shadowColor: Colors.purple,
-    shadowOpacity: 0.8,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 15,
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   title: {
     fontSize: Theme.typography.sizes.xl,
@@ -99,14 +99,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.white60,
+    backgroundColor: 'rgba(62, 39, 35, 0.2)',
     marginHorizontal: 4,
   },
   activeDot: {
     width: 24,
     backgroundColor: Colors.purple,
     shadowColor: Colors.purple,
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.2,
     shadowRadius: 5,
   },
   buttons: {

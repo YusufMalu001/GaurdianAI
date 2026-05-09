@@ -11,24 +11,24 @@ import { useEffect, useState } from 'react';
 
 const getHeatmapHtml = (lat: number, lng: number, incidents: any[]) => {
   const circles = incidents.map(inc => {
-    const color = inc.riskLevel === 'HIGH' ? '#FF3B3B' : inc.riskLevel === 'MEDIUM' ? '#FFB800' : '#00E5C3';
+    const color = inc.riskLevel === 'HIGH' ? Colors.danger : inc.riskLevel === 'MEDIUM' ? '#D2691E' : Colors.success;
     return `L.circle([${inc.lat}, ${inc.lng}], {color:'${color}', fillColor:'${color}', fillOpacity:0.3, radius:150, weight:1}).addTo(map);`;
   }).join('\n');
 
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>body{margin:0;background:#050505}#map{width:100vw;height:100vh}</style>
+<style>body{margin:0;background:${Colors.primary}}#map{width:100vw;height:100vh}</style>
 </head><body><div id="map"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 var map=L.map('map',{zoomControl:false}).setView([${lat}, ${lng}], 14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20}).addTo(map);
 ${circles}
 </script></body></html>`;
 };
 
-const riskColor = (r: string) => r === 'HIGH' ? Colors.danger : r === 'MEDIUM' ? '#FFB800' : Colors.success;
+const riskColor = (r: string) => r === 'HIGH' ? Colors.danger : r === 'MEDIUM' ? '#D2691E' : Colors.success;
 
 export default function HeatmapScreen() {
   const { location } = useLocation();

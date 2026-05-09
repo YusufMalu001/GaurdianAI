@@ -1,110 +1,227 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, SafeAreaView, Platform, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, StyleSheet, SafeAreaView, Platform, Text, TouchableOpacity, ActivityIndicator, FlatList, Keyboard } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Colors, Theme } from '../../constants/theme';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
-import { MapPin, Search, Navigation, LocateFixed } from 'lucide-react-native';
+import { MapPin, Search, Navigation, LocateFixed, AlertCircle } from 'lucide-react-native';
 import { useLocation } from '../../hooks/useLocation';
 
-export default function MapScreen() {
-  const { location } = useLocation();
-  const [destination, setDestination] = useState('');
-  const [isNavigating, setIsNavigating] = useState(false);
-  const webViewRef = useRef<WebView>(null);
-  const lat = location?.lat ?? 28.6139;
-  const lng = location?.lng ?? 77.209;
+type Place = { display_name: string; lat: string; lon: string };
 
-  const mapHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <style>
-        body { margin: 0; padding: 0; background-color: #0F172A; }
-        #map { width: 100vw; height: 100vh; }
-        .leaflet-container { background: #0F172A; }
-        path.leaflet-interactive.safe-route {
-          stroke: #14B8A6;
-          stroke-width: 5;
-          filter: drop-shadow(0 0 4px rgba(20, 184, 166, 0.4));
+const STATIC_MAP_HTML = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      body { margin: 0; padding: 0; background-color: ${Colors.primary}; }
+      #map { width: 100vw; height: 100vh; }
+      .leaflet-container { background: ${Colors.primary}; }
+      .custom-soft-marker {
+        transition: all 0.3s ease;
+      }
+      /* Pulsing dot animation */
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 229, 195, 0.7); }
+        70% { box-shadow: 0 0 0 15px rgba(0, 229, 195, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 229, 195, 0); }
+      }
+      .pulse-marker {
+        background-color: ${Colors.teal};
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        border: 2px solid white;
+        animation: pulse 2s infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      var map = L.map('map', { zoomControl: true }).setView([28.6139, 77.209], 15);
+      
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(map);
+
+      // Danger Zone Mock
+      L.circle([28.6169, 77.211], {
+        color: 'transparent',
+        fillColor: '${Colors.danger}',
+        fillOpacity: 0.15,
+        radius: 300,
+        weight: 0
+      }).addTo(map);
+
+      var userMarker, destMarker, routeLayer;
+      var userIcon = L.divIcon({ html: '<div class="pulse-marker"></div>', className: 'custom-soft-marker', iconSize: [16, 16] });
+      var destIcon = L.divIcon({ html: '<div style="background-color: ${Colors.purple}; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px rgba(123, 47, 247, 0.5); border: 2px solid white;"></div>', className: 'custom-soft-marker', iconSize: [16, 16] });
+
+      window.updateLocation = function(lat, lng) {
+        if (!userMarker) {
+          userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
+          map.setView([lat, lng], 15);
+        } else {
+          userMarker.setLatLng([lat, lng]);
         }
-        path.leaflet-interactive.fast-route {
-          stroke: #6D28D9;
-          stroke-width: 4;
-          stroke-dasharray: 10, 10;
-          opacity: 0.8;
-        }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <script>
-        var map = L.map('map', { zoomControl: false }).setView([${lat}, ${lng}], 15);
+      };
+
+      window.setDestinationMarker = function(lat, lng) {
+        if (destMarker) map.removeLayer(destMarker);
+        destMarker = L.marker([lat, lng], { icon: destIcon }).addTo(map);
+      };
+
+      window.drawRoute = function(geojsonStr) {
+        if (routeLayer) map.removeLayer(routeLayer);
+        var geojson = JSON.parse(geojsonStr);
+        routeLayer = L.geoJSON(geojson, {
+          style: { color: '${Colors.teal}', weight: 5, filter: 'drop-shadow(0 0 4px rgba(0, 229, 195, 0.4))' }
+        }).addTo(map);
         
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-          subdomains: 'abcd',
-          maxZoom: 20
-        }).addTo(map);
+        var bounds = routeLayer.getBounds();
+        if (userMarker) bounds.extend(userMarker.getLatLng());
+        if (destMarker) bounds.extend(destMarker.getLatLng());
+        map.fitBounds(bounds, { padding: [50, 50] });
+      };
 
-        var markerHtml = '<div style="background-color: #10B981; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); border: 2px solid white;"></div>';
-        var customIcon = L.divIcon({ html: markerHtml, className: 'custom-soft-marker', iconSize: [16, 16] });
-        L.marker([${lat}, ${lng}], { icon: customIcon }).addTo(map);
+      window.clearRoute = function() {
+        if (routeLayer) map.removeLayer(routeLayer);
+        if (destMarker) map.removeLayer(destMarker);
+        routeLayer = null;
+        destMarker = null;
+        if (userMarker) map.setView(userMarker.getLatLng(), 15);
+      };
 
-        // Danger Zone
-        L.circle([${lat + 0.003}, ${lng + 0.002}], {
-          color: 'transparent',
-          fillColor: '#EF4444',
-          fillOpacity: 0.2,
-          radius: 300,
-          weight: 0
-        }).addTo(map);
+      window.centerOnUser = function() {
+        if (userMarker) {
+          map.setView(userMarker.getLatLng(), 15);
+        }
+      };
+    </script>
+  </body>
+  </html>
+`;
 
-        ${isNavigating ? `
-          // Destination Marker
-          var destMarkerHtml = '<div style="background-color: #6D28D9; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px rgba(109, 40, 217, 0.5); border: 2px solid white;"></div>';
-          var destIcon = L.divIcon({ html: destMarkerHtml, className: 'custom-soft-marker', iconSize: [16, 16] });
-          L.marker([${lat + 0.008}, ${lng + 0.005}], { icon: destIcon }).addTo(map);
+export default function MapScreen() {
+  const { location, loading, error } = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<Place[]>([]);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [selectedDestName, setSelectedDestName] = useState('');
+  const [eta, setEta] = useState('');
+  const [distance, setDistance] = useState('');
+  const webViewRef = useRef<WebView>(null);
+  const [mapReady, setMapReady] = useState(false);
 
-          // Fast Route (Direct, but goes through danger zone)
-          var fastRouteCoords = [
-            [${lat}, ${lng}],
-            [${lat + 0.002}, ${lng + 0.001}],
-            [${lat + 0.004}, ${lng + 0.002}], // Inside danger zone
-            [${lat + 0.006}, ${lng + 0.004}],
-            [${lat + 0.008}, ${lng + 0.005}]
-          ];
-          L.polyline(fastRouteCoords, { className: 'fast-route' }).addTo(map);
+  useEffect(() => {
+    if (mapReady && location) {
+      const script = `window.updateLocation(${location.lat}, ${location.lng}); true;`;
+      webViewRef.current?.injectJavaScript(script);
+    }
+  }, [location, mapReady]);
 
-          // Safe Route (Curved around danger zone)
-          var safeRouteCoords = [
-            [${lat}, ${lng}],
-            [${lat + 0.001}, ${lng + 0.005}],
-            [${lat + 0.004}, ${lng + 0.007}], // Bypassing danger zone
-            [${lat + 0.007}, ${lng + 0.006}],
-            [${lat + 0.008}, ${lng + 0.005}]
-          ];
-          L.polyline(safeRouteCoords, { className: 'safe-route' }).addTo(map);
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (searchQuery.length > 2) {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&addressdetails=1&limit=5`,
+            {
+              headers: {
+                'User-Agent': 'GuardianSafetyApp/1.0',
+                'Accept': 'application/json',
+              }
+            }
+          );
           
-          // Adjust bounds to fit both routes
-          map.fitBounds(L.polyline(safeRouteCoords).getBounds(), { padding: [50, 50] });
-        ` : `
-          // Idle state route (just a small trail)
-          var routeCoords = [
-            [${lat}, ${lng}],
-            [${lat - 0.001}, ${lng - 0.001}],
-            [${lat - 0.002}, ${lng - 0.003}],
-            [${lat - 0.003}, ${lng - 0.004}]
-          ];
-          L.polyline(routeCoords, { className: 'safe-route' }).addTo(map);
-        `}
-      </script>
-    </body>
-    </html>
-  `;
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.warn(`Search API returned status ${res.status}: ${errorText.substring(0, 100)}`);
+            return;
+          }
+
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await res.json();
+            setSuggestions(data);
+          } else {
+            const text = await res.text();
+            console.error("Search failed: Expected JSON but got", contentType, text.substring(0, 100));
+          }
+        } catch (e) {
+          console.error("Search failed", e);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSelectPlace = async (place: Place) => {
+    Keyboard.dismiss();
+    setSearchQuery('');
+    setSuggestions([]);
+    setSelectedDestName(place.display_name.split(',')[0]);
+    setIsNavigating(true);
+
+    const destLat = parseFloat(place.lat);
+    const destLng = parseFloat(place.lon);
+
+    if (location) {
+      try {
+        const res = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${location.lng},${location.lat};${destLng},${destLat}?overview=full&geometries=geojson`,
+          {
+            headers: {
+              'Accept': 'application/json',
+            }
+          }
+        );
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error(`Routing failed with status ${res.status}: ${errorText.substring(0, 100)}`);
+          return;
+        }
+
+        const data = await res.json();
+        
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const distKm = (route.distance / 1000).toFixed(1);
+          const timeMin = Math.round(route.duration / 60);
+          
+          setDistance(`${distKm} km`);
+          setEta(`${timeMin} min`);
+
+          const script = `
+            window.setDestinationMarker(${destLat}, ${destLng});
+            window.drawRoute('${JSON.stringify(route.geometry)}');
+            true;
+          `;
+          webViewRef.current?.injectJavaScript(script);
+        }
+      } catch (err) {
+        console.error("Routing failed", err);
+      }
+    }
+  };
+
+  const handleCancelNavigation = () => {
+    setIsNavigating(false);
+    setSelectedDestName('');
+    webViewRef.current?.injectJavaScript("window.clearRoute(); true;");
+  };
+
+  const handleCenterUser = () => {
+    webViewRef.current?.injectJavaScript("window.centerOnUser(); true;");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -113,22 +230,45 @@ export default function MapScreen() {
         {/* Floating Header */}
         <View style={styles.floatingHeader}>
           {!isNavigating ? (
-            <GlassInput
-              placeholder="Where do you want to go?"
-              icon={<Search color={Colors.teal} size={20} />}
-              value={destination}
-              onChangeText={setDestination}
-              onSubmitEditing={() => setIsNavigating(true)}
-              returnKeyType="search"
-            />
+            <View>
+              <GlassInput
+                placeholder="Where do you want to go?"
+                icon={<Search color={Colors.teal} size={20} />}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+              />
+              {suggestions.length > 0 && (
+                <GlassCard style={styles.suggestionsContainer}>
+                  <FlatList
+                    data={suggestions}
+                    keyExtractor={(item) => item.lat + item.lon}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity style={styles.suggestionItem} onPress={() => handleSelectPlace(item)}>
+                        <MapPin color={Colors.teal} size={16} />
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                          <Text style={styles.suggestionTitle} numberOfLines={1}>
+                            {item.display_name.split(',')[0]}
+                          </Text>
+                          <Text style={styles.suggestionSubtitle} numberOfLines={1}>
+                            {item.display_name}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                    scrollEnabled={false}
+                  />
+                </GlassCard>
+              )}
+            </View>
           ) : (
             <GlassCard style={styles.headerCard}>
-              <TouchableOpacity onPress={() => setIsNavigating(false)} style={{ padding: 4 }}>
+              <TouchableOpacity onPress={handleCancelNavigation} style={{ padding: 4 }}>
                 <Text style={{ color: Colors.white60, fontSize: 18 }}>{'<'}</Text>
               </TouchableOpacity>
               <MapPin color={Colors.teal} size={20} style={{ marginLeft: Theme.spacing.md }} />
               <Text style={styles.headerText} numberOfLines={1}>
-                {destination || "Unknown Destination"}
+                {selectedDestName || "Unknown Destination"}
               </Text>
             </GlassCard>
           )}
@@ -138,23 +278,40 @@ export default function MapScreen() {
         <View style={styles.mapContainer}>
           {Platform.OS === 'web' ? (
             <iframe 
-              srcDoc={mapHtml} 
+              srcDoc={STATIC_MAP_HTML} 
               style={{ width: '100%', height: '100%', border: 'none' }} 
               title="Safe Route Map"
+              onLoad={() => setMapReady(true)}
             />
           ) : (
-            <WebView ref={webViewRef} source={{ html: mapHtml }} style={{ flex: 1 }} scrollEnabled={false} />
+            <WebView 
+              ref={webViewRef} 
+              source={{ html: STATIC_MAP_HTML }} 
+              style={{ flex: 1 }} 
+              scrollEnabled={false} 
+              onLoadEnd={() => setMapReady(true)}
+            />
+          )}
+
+          {/* Loading / Error Overlays */}
+          {loading && (
+            <View style={styles.statusOverlay}>
+              <ActivityIndicator size="large" color={Colors.teal} />
+              <Text style={styles.statusText}>Fetching Location...</Text>
+            </View>
+          )}
+          {error && !loading && (
+            <View style={styles.statusOverlay}>
+              <AlertCircle color={Colors.danger} size={32} />
+              <Text style={[styles.statusText, { color: Colors.danger }]}>{error}</Text>
+              <Text style={styles.fallbackText}>Please enable GPS to use map features.</Text>
+            </View>
           )}
 
           {/* My Location Button */}
           <TouchableOpacity 
             style={[styles.myLocationBtn, { bottom: isNavigating ? 320 : Theme.spacing.xl }]}
-            onPress={() => {
-              const script = `map.setView([${lat}, ${lng}], 15); true;`;
-              if (Platform.OS !== 'web') {
-                webViewRef.current?.injectJavaScript(script);
-              }
-            }}
+            onPress={handleCenterUser}
           >
             <LocateFixed color={Colors.teal} size={24} />
           </TouchableOpacity>
@@ -168,25 +325,16 @@ export default function MapScreen() {
                 <View style={styles.routeHeader}>
                   <View style={[styles.routeColorDot, { backgroundColor: Colors.teal }]} />
                   <Text style={styles.routeTitle}>Safe Route (Recommended)</Text>
-                  <Text style={styles.routeEta}>14 min</Text>
+                  <Text style={styles.routeEta}>{eta || '-- min'}</Text>
                 </View>
-                <Text style={styles.routeDesc}>Avoids 1 reported danger zone</Text>
+                <Text style={styles.routeDesc}>{distance || '-- km'} • Avoids known dark zones</Text>
               </View>
               
               <View style={styles.divider} />
               
-              <View style={styles.routeOption}>
-                <View style={styles.routeHeader}>
-                  <View style={[styles.routeColorDot, { backgroundColor: Colors.purple }]} />
-                  <Text style={styles.routeTitle}>Fast Route</Text>
-                  <Text style={styles.routeEta}>10 min</Text>
-                </View>
-                <Text style={styles.routeDesc}>Direct path, passes near unlit areas</Text>
-              </View>
-
               <TouchableOpacity style={styles.startNavBtn}>
                 <Navigation color={Colors.white} size={20} />
-                <Text style={styles.startNavText}>START SAFE ROUTE</Text>
+                <Text style={styles.startNavText}>START NAVIGATION</Text>
               </TouchableOpacity>
             </GlassCard>
           </View>
@@ -213,6 +361,28 @@ const styles = StyleSheet.create({
     right: Theme.spacing.lg,
     zIndex: 10,
   },
+  suggestionsContainer: {
+    marginTop: Theme.spacing.sm,
+    maxHeight: 250,
+    padding: Theme.spacing.sm,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
+  },
+  suggestionTitle: {
+    color: Colors.white,
+    fontSize: Theme.typography.sizes.md,
+    fontWeight: '600',
+  },
+  suggestionSubtitle: {
+    color: Colors.white60,
+    fontSize: 12,
+    marginTop: 2,
+  },
   headerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -229,6 +399,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.secondary,
   },
+  statusOverlay: {
+    position: 'absolute',
+    top: '40%',
+    left: '10%',
+    right: '10%',
+    backgroundColor: Colors.card,
+    padding: Theme.spacing.lg,
+    borderRadius: Theme.borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    zIndex: 15,
+  },
+  statusText: {
+    color: Colors.white,
+    marginTop: Theme.spacing.md,
+    fontSize: Theme.typography.sizes.md,
+    fontWeight: '600',
+  },
+  fallbackText: {
+    color: Colors.white60,
+    marginTop: Theme.spacing.sm,
+    fontSize: Theme.typography.sizes.sm,
+    textAlign: 'center',
+  },
   myLocationBtn: {
     position: 'absolute',
     right: Theme.spacing.lg,
@@ -237,9 +437,9 @@ const styles = StyleSheet.create({
     borderRadius: Theme.borderRadius.pill,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    shadowColor: '#000',
+    shadowColor: '#2D1E17',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 5,
     elevation: 6,
     zIndex: 20,

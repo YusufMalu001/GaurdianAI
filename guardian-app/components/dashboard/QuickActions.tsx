@@ -5,9 +5,9 @@ import { Navigation, Video, Mic, Phone } from 'lucide-react-native';
 
 const ACTIONS = [
   { label: 'Safe Route', icon: Navigation, color: Colors.purple },
-  { label: 'Fake Call', icon: Phone, color: Colors.pink },
-  { label: 'Record', icon: Mic, color: Colors.cyan },
-  { label: 'Video', icon: Video, color: '#FFB800' },
+  { label: 'Fake Call', icon: Phone, color: Colors.cyan },
+  { label: 'Record', icon: Mic, color: Colors.teal },
+  { label: 'Video', icon: Video, color: '#D2691E' },
 ];
 
 interface Props { onActionPress?: (label: string) => void; }

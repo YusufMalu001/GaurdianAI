@@ -34,7 +34,7 @@ export default function GlowText({
 const styles = StyleSheet.create({
   text: {
     fontFamily: Theme.typography.fontFamily.bold,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });

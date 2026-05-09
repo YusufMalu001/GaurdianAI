@@ -5,24 +5,45 @@ import { Colors, Theme } from '../../constants/theme';
 interface GlassCardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  variant?: 'default' | 'elevated' | 'outlined' | 'frosted';
 }
 
-export default function GlassCard({ children, style }: GlassCardProps) {
+export default function GlassCard({ children, style, variant = 'default' }: GlassCardProps) {
+  const variantStyle = variantStyles[variant];
   return (
-    <View style={[styles.card, Theme.shadows.glass, style]}>
+    <View style={[styles.card, variantStyle, style]}>
       {children}
     </View>
   );
 }
 
+const variantStyles: Record<string, ViewStyle> = {
+  default: {
+    backgroundColor: Colors.card,
+    borderColor: Colors.cardBorder,
+    ...Theme.shadows.glass,
+  },
+  elevated: {
+    backgroundColor: Colors.cardSolid,
+    borderColor: Colors.glassStroke,
+    ...Theme.shadows.lifted,
+  },
+  frosted: {
+    backgroundColor: Colors.glassBg,
+    borderColor: Colors.glassStroke,
+    ...Theme.shadows.medium,
+  },
+  outlined: {
+    backgroundColor: 'transparent',
+    borderColor: Colors.cardBorder,
+  },
+};
+
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: Theme.borderRadius.lg,
+    borderRadius: Theme.borderRadius.xl,
     padding: Theme.spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backdropFilter: 'blur(10px)', // Note: backdropFilter is primarily web-only, on native it relies on backgroundColor opacity
     overflow: 'hidden',
   },
 });

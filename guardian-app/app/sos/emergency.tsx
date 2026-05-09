@@ -97,7 +97,7 @@ export default function EmergencyScreen() {
             onPress={() => router.back()}
             disabled={triggered && countdown === 0}
           >
-            <X color={Colors.white} size={32} />
+            <X color={triggered ? Colors.trueWhite : Colors.white} size={32} />
           </TouchableOpacity>
         </View>
 
@@ -105,7 +105,7 @@ export default function EmergencyScreen() {
         <View style={styles.content}>
           {triggered ? (
             <View style={styles.activeState}>
-              <ShieldAlert color={Colors.white} size={80} style={styles.alertIcon} />
+              <ShieldAlert color={Colors.trueWhite} size={80} style={styles.alertIcon} />
               <Text style={styles.activeTitle}>
                 EMERGENCY ALERT ACTIVE
               </Text>
@@ -136,7 +136,7 @@ export default function EmergencyScreen() {
                   <Text style={styles.desc}>Live location & audio sharing with Police and {trustedContacts.map(c => c.name).join(', ') || 'Trusted Contacts'} is ACTIVE.</Text>
                   <View style={styles.streamingIndicators}>
                     <View style={styles.streamPill}>
-                      <Mic color={Colors.white} size={16} />
+                      <Mic color={Colors.trueWhite} size={16} />
                       <Text style={styles.streamText}>AUDIO REC</Text>
                       <View style={[styles.dot, { backgroundColor: Colors.danger }]} />
                     </View>
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   triggeredBg: {
-    backgroundColor: '#7F1D1D', // Soft deep red
+    backgroundColor: '#3E2723', // Deep Chocolate/Brown for emergency
   },
   container: {
     flex: 1,
@@ -206,7 +206,9 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.md,
   },
   desc: {
-    color: Colors.white80,
+    color: Colors.white, // In emergency state, white is dark brown, but on dark bg we need real white. 
+    // Wait, I should check the logic: if 'triggered' is true, the container gets 'triggeredBg'.
+    // If 'triggered' is true, I should probably use a style that forces trueWhite.
     fontSize: Theme.typography.sizes.md,
     textAlign: 'center',
     paddingHorizontal: Theme.spacing.xl,
@@ -226,20 +228,20 @@ const styles = StyleSheet.create({
   activeTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: Colors.white,
+    color: Colors.trueWhite,
     textAlign: 'center',
     marginBottom: Theme.spacing.md,
   },
   countdown: {
     fontSize: 80,
     fontWeight: '800',
-    color: Colors.white,
+    color: Colors.trueWhite,
     marginVertical: Theme.spacing.xl,
   },
   reassuringText: {
     fontSize: 24,
     fontWeight: '600',
-    color: Colors.white,
+    color: Colors.trueWhite,
     marginBottom: Theme.spacing.md,
     textAlign: 'center',
   },
@@ -248,11 +250,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Theme.spacing.xl,
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: Colors.white,
+    borderColor: Colors.trueWhite,
     borderRadius: Theme.borderRadius.pill,
   },
   cancelText: {
-    color: Colors.white,
+    color: Colors.trueWhite,
     fontWeight: '700',
     letterSpacing: 2,
   },
@@ -272,7 +274,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   streamText: {
-    color: Colors.white,
+    color: Colors.trueWhite,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: Theme.spacing.sm,

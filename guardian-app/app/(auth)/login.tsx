@@ -59,8 +59,8 @@ export default function LoginScreen() {
         style={styles.container}
       >
         <View style={styles.header}>
-          <Shield color={Colors.cyan} size={60} strokeWidth={1.5} />
-          <GlowText style={styles.title} color={Colors.white} glowColor={Colors.cyan}>
+          <Shield color={Colors.purple} size={60} strokeWidth={1.5} />
+          <GlowText style={styles.title} color={Colors.white} glowColor={Colors.pink}>
             WELCOME BACK
           </GlowText>
           <Text style={styles.subtitle}>Sign in to continue your secure journey</Text>
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.lg,
   },
   label: {
-    color: Colors.cyan,
+    color: Colors.purple,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: Colors.cardBorder,
     borderRadius: Theme.borderRadius.md,
     color: Colors.white,
     padding: Theme.spacing.md,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.cardBorder,
   },
   dividerText: {
     color: Colors.white60,

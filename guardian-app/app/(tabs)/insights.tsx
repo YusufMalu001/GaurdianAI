@@ -16,7 +16,7 @@ const getChartHtml = (data: number[]) => `<!DOCTYPE html><html><head>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 var ctx=document.getElementById('c').getContext('2d');
-new Chart(ctx,{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Safety Score',data:[${data.join(',')}],borderColor:'#7B2FF7',backgroundColor:'rgba(123,47,247,0.15)',borderWidth:3,pointBackgroundColor:'#00E5C3',tension:0.4,fill:true}]},options:{plugins:{legend:{labels:{color:'#fff'}}},scales:{x:{ticks:{color:'rgba(255,255,255,0.6)'},grid:{color:'rgba(255,255,255,0.05)'}},y:{min:60,max:100,ticks:{color:'rgba(255,255,255,0.6)'},grid:{color:'rgba(255,255,255,0.05)'}}}}});
+new Chart(ctx,{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Safety Score',data:[${data.join(',')}],borderColor:'${Colors.purple}',backgroundColor:'rgba(109, 76, 65, 0.1)',borderWidth:3,pointBackgroundColor:'${Colors.cyan}',tension:0.4,fill:true}]},options:{plugins:{legend:{labels:{color:'${Colors.white}'}}},scales:{x:{ticks:{color:'${Colors.white60}'},grid:{color:'rgba(62, 39, 35, 0.05)'}},y:{min:60,max:100,ticks:{color:'${Colors.white60}'},grid:{color:'rgba(62, 39, 35, 0.05)'}}}}});
 </script></body></html>`;
 
 export default function InsightsScreen() {
@@ -27,7 +27,7 @@ export default function InsightsScreen() {
 
   const CARDS = [
     { icon: TrendingUp, label: 'Safe Trips', value: String(profile?.totalTrips ?? 0), sub: 'Total trips taken', color: Colors.success },
-    { icon: TrendingDown, label: 'Safe Miles', value: String(profile?.safeMiles ?? 0), sub: 'Total distance', color: '#FFB800' },
+    { icon: TrendingDown, label: 'Safe Miles', value: String(profile?.safeMiles ?? 0), sub: 'Total distance', color: '#D2691E' },
     { icon: AlertTriangle, label: 'High Risk Hours', value: '10pm–2am', sub: 'Based on your routes', color: Colors.danger },
     { icon: Activity, label: 'Safety Score', value: `${score}%`, sub: 'Current area', color: Colors.purple },
   ];

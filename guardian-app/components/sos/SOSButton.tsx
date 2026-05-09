@@ -82,7 +82,7 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
   // For the progress circle outline
   const borderColor = progressAnim.interpolate({
     inputRange: [0, 100],
-    outputRange: ['rgba(239, 68, 68, 0.1)', Colors.danger]
+    outputRange: ['rgba(166, 68, 82, 0.1)', Colors.danger]
   });
 
   return (
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   pulseRing: {
     position: 'absolute',
     borderRadius: 999,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(166, 68, 82, 0.12)',
   },
   button: {
     backgroundColor: Colors.danger,
@@ -137,18 +137,18 @@ const styles = StyleSheet.create({
     borderWidth: 6,
     shadowColor: Colors.danger,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 8,
   },
   text: {
     fontSize: 42,
     fontWeight: '700',
-    color: Colors.white,
+    color: Colors.trueWhite,
     letterSpacing: 2,
   },
   subtext: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,

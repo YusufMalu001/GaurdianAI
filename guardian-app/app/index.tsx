@@ -52,10 +52,10 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 24,
-    shadowColor: Colors.cyan,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
+    shadowColor: '#6D4C41',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
     elevation: 10,
   },
   title: {
@@ -67,8 +67,9 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 16,
-    color: Colors.cyan,
+    color: Colors.purple,
     letterSpacing: 2,
     textTransform: 'uppercase',
+    fontWeight: '500',
   },
 });
