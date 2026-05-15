@@ -1,5 +1,5 @@
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://10.131.154.101:3001/api';
-const wsUrl = process.env.EXPO_PUBLIC_WS_URL || 'ws://10.131.154.101:3001';
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://10.175.221.252:3001/api';
+const wsUrl = process.env.EXPO_PUBLIC_WS_URL || 'ws://10.175.221.252:3001';
 
 export const Config = {
   API_BASE_URL: apiBaseUrl,

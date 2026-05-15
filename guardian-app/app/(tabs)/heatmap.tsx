@@ -8,11 +8,12 @@ import { Flame } from 'lucide-react-native';
 import { safetyApi } from '../../services/api/safetyApi';
 import { useLocation } from '../../hooks/useLocation';
 import { useEffect, useState } from 'react';
+import { SIMULATED_ZONES } from '../../constants/simulatedZones';
 
-const getHeatmapHtml = (lat: number, lng: number, incidents: any[]) => {
-  const circles = incidents.map(inc => {
-    const color = inc.riskLevel === 'HIGH' ? Colors.danger : inc.riskLevel === 'MEDIUM' ? '#D2691E' : Colors.success;
-    return `L.circle([${inc.lat}, ${inc.lng}], {color:'${color}', fillColor:'${color}', fillOpacity:0.3, radius:150, weight:1}).addTo(map);`;
+const getHeatmapHtml = (lat: number, lng: number, zones: any[]) => {
+  const circles = zones.map(zone => {
+    return `L.circle([${zone.center_latitude}, ${zone.center_longitude}], {color:'${zone.color}', fillColor:'${zone.color}', fillOpacity:0.4, radius:${zone.radius}, weight:2}).addTo(map)
+    .bindPopup("<b>Zone: ${zone.zone_id}</b><br>Risk: ${zone.risk_level}<br>Crime: ${zone.dominant_crime_type}<br>Active: ${zone.active_time_range}");`;
   }).join('\n');
 
   return `<!DOCTYPE html><html><head>
@@ -32,17 +33,15 @@ const riskColor = (r: string) => r === 'HIGH' ? Colors.danger : r === 'MEDIUM' ?
 
 export default function HeatmapScreen() {
   const { location } = useLocation();
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const lat = location?.lat ?? 28.6139;
-  const lng = location?.lng ?? 77.209;
+  // Using the simulated zones
+  const zones = SIMULATED_ZONES;
+  
+  // Center map on Indore to showcase the simulated zones if actual location is far away,
+  // or use the user's location if they are in Indore. For demo purposes, we'll force Indore.
+  const lat = 22.7196; 
+  const lng = 75.8577;
 
-  useEffect(() => {
-    safetyApi.getIncidents(lat, lng, 5000)
-      .then(setIncidents)
-      .catch(console.error);
-  }, [lat, lng]);
-
-  const heatmapHtml = getHeatmapHtml(lat, lng, incidents);
+  const heatmapHtml = getHeatmapHtml(lat, lng, zones);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -58,16 +57,16 @@ export default function HeatmapScreen() {
       </View>
 
       <View style={styles.incidents}>
-        <Text style={styles.sectionTitle}>RECENT INCIDENTS</Text>
-        {incidents.map(inc => (
-          <GlassCard key={inc.id} style={styles.card}>
+        <Text style={styles.sectionTitle}>ACTIVE SAFETY ZONES</Text>
+        {zones.map(zone => (
+          <GlassCard key={zone.zone_id} style={styles.card}>
             <View style={styles.row}>
-              <View style={[styles.badge, { borderColor: riskColor(inc.riskLevel) }]}>
-                <Text style={[styles.badgeText, { color: riskColor(inc.riskLevel) }]}>{inc.riskLevel}</Text>
+              <View style={[styles.badge, { borderColor: zone.color }]}>
+                <Text style={[styles.badgeText, { color: zone.color }]}>{zone.risk_level}</Text>
               </View>
               <View style={styles.info}>
-                <Text style={styles.incType}>{inc.type}</Text>
-                <Text style={styles.incMeta}>{inc.description} · {new Date(inc.timestamp).toLocaleTimeString()}</Text>
+                <Text style={styles.incType}>{zone.dominant_crime_type}</Text>
+                <Text style={styles.incMeta}>{zone.total_reports} Reports · Active {zone.active_time_range}</Text>
               </View>
             </View>
           </GlassCard>

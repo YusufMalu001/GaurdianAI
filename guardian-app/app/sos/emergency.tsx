@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, Text, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Audio } from 'expo-av';
@@ -10,6 +10,8 @@ import { emergencyApi } from '../../services/api/emergencyApi';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
 import { useLocation } from '../../hooks/useLocation';
+import { sosWebSocket } from '../../services/sosWebSocket';
+import { useSOSStore } from '../../store/sosStore';
 
 export default function EmergencyScreen() {
   const [triggered, setTriggered] = useState(false);
@@ -21,8 +23,12 @@ export default function EmergencyScreen() {
   const { trustedContacts } = useUserStore();
   const { location } = useLocation();
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const isRecordingAction = useRef(false);
 
   async function startRecording() {
+    if (isRecordingAction.current || recording) return;
+    isRecordingAction.current = true;
+    
     try {
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({
@@ -34,26 +40,35 @@ export default function EmergencyScreen() {
       setRecording(newRecording);
     } catch (recordingError) {
       console.error('Failed to start recording', recordingError);
+    } finally {
+      isRecordingAction.current = false;
     }
   }
 
   async function stopRecording() {
-    if (!recording) return;
+    if (!recording || isRecordingAction.current) return;
+    
+    const rec = recording;
+    setRecording(null); // Immediately clear state
+    isRecordingAction.current = true;
 
     try {
-      await recording.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      const status = await rec.getStatusAsync();
+      if (status.canRecord || status.isRecording) {
+        await rec.stopAndUnloadAsync();
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      }
     } catch (recordingError) {
       console.error('Failed to stop recording', recordingError);
+    } finally {
+      isRecordingAction.current = false;
     }
-
-    setRecording(null);
   }
 
   useEffect(() => {
     return () => {
       if (recording) {
-        recording.stopAndUnloadAsync().catch(console.error);
+        recording.stopAndUnloadAsync().catch(() => {});
       }
     };
   }, [recording]);
@@ -95,6 +110,11 @@ export default function EmergencyScreen() {
         .trigger(user.id, lat, lng, token)
         .then(async (response) => {
           setAlertId(response.alert.id);
+          
+          // Connect to WebSocket and join session
+          sosWebSocket.connect();
+          sosWebSocket.joinSession(response.alert.id);
+          useSOSStore.getState().setSOSActive(true, response.alert.id);
 
           const contactIds = trustedContacts.map((contact) => contact.id);
           if (contactIds.length > 0) {
@@ -114,6 +134,13 @@ export default function EmergencyScreen() {
       }
     };
   }, [alertId, countdown, location?.lat, location?.lng, submitting, token, triggered, trustedContacts, user?.id]);
+
+  // Handle Location Updates for WebSocket
+  useEffect(() => {
+    if (triggered && alertId && location?.lat && location?.lng) {
+      sosWebSocket.sendLocationUpdate(alertId, location.lat, location.lng);
+    }
+  }, [location?.lat, location?.lng, triggered, alertId]);
 
   return (
     <SafeAreaView style={[styles.safeArea, triggered && styles.triggeredBg]}>
@@ -145,6 +172,8 @@ export default function EmergencyScreen() {
                       if (alertId && token) {
                         emergencyApi.cancel(alertId, token).catch(console.error);
                       }
+                      sosWebSocket.disconnect();
+                      useSOSStore.getState().setSOSActive(false, null);
                       resetEmergencyState();
                     }}
                     buttonStyle={styles.cancelBtn}

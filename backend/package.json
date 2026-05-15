@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.20.0",
     "prisma": "^6.8.2",
+    "socket.io": "^4.8.3",
     "ws": "^8.14.2"
   },
   "devDependencies": {

@@ -20,7 +20,7 @@ model User {
   updatedAt       DateTime           @updatedAt @map("updated_at")
   trustedContacts TrustedContact[]
   incidents       Incident[]
-  emergencyAlerts EmergencyAlert[]
+  sosEvents       SOSEvent[]
   trips           Trip[]
 
   @@map("users")
@@ -29,12 +29,15 @@ model User {
 model TrustedContact {
   id                 String              @id @default(uuid())
   userId             String              @map("user_id")
-  name               String
-  phone              String
-  relation           String?
+  contactName        String              @map("contact_name")
+  phoneNumber        String              @map("phone_number")
+  email              String?
+  relationship       String?
+  isPriority         Boolean             @default(false) @map("is_priority")
+  guardianUserId     String?             @map("guardian_user_id")
   createdAt          DateTime            @default(now()) @map("created_at")
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  alertNotifications AlertNotification[]
+  alertNotifications EmergencyNotification[]
 
   @@map("trusted_contacts")
 }
@@ -55,31 +58,56 @@ model Incident {
   @@map("incidents")
 }
 
-model EmergencyAlert {
-  id                 String              @id @default(uuid())
-  userId             String              @map("user_id")
-  lat                Float
-  lng                Float
-  status             String              @default("ACTIVE")
-  triggeredAt        DateTime            @default(now()) @map("triggered_at")
-  resolvedAt         DateTime?           @map("resolved_at")
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  alertNotifications AlertNotification[]
+model SOSEvent {
+  id                     String                  @id @default(uuid())
+  userId                 String                  @map("user_id")
+  lat                    Float
+  lng                    Float
+  status                 String                  @default("ACTIVE")
+  batteryLevel           Int?                    @map("battery_level")
+  triggeredAt            DateTime                @default(now()) @map("triggered_at")
+  resolvedAt             DateTime?               @map("resolved_at")
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emergencyNotifications EmergencyNotification[]
+  liveTrackingSessions   LiveTrackingSession[]
 
-  @@index([userId], map: "idx_alerts_user")
-  @@map("emergency_alerts")
+  @@index([userId], map: "idx_sos_events_user")
+  @@map("sos_events")
 }
 
-model AlertNotification {
-  id        String          @id @default(uuid())
-  alertId   String          @map("alert_id")
-  contactId String?         @map("contact_id")
-  sentAt    DateTime        @default(now()) @map("sent_at")
-  delivered Boolean         @default(false)
-  alert     EmergencyAlert  @relation(fields: [alertId], references: [id], onDelete: Cascade)
-  contact   TrustedContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+model LiveTrackingSession {
+  id        String    @id @default(uuid())
+  sosEventId String   @map("sos_event_id")
+  status    String    @default("ACTIVE") // ACTIVE, ENDED
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  sosEvent  SOSEvent  @relation(fields: [sosEventId], references: [id], onDelete: Cascade)
 
-  @@map("alert_notifications")
+  @@index([sosEventId], map: "idx_tracking_session_sos_event")
+  @@map("live_tracking_sessions")
+}
+
+model EmergencyNotification {
+  id         String          @id @default(uuid())
+  sosEventId String          @map("sos_event_id")
+  contactId  String?         @map("contact_id")
+  sentAt     DateTime        @default(now()) @map("sent_at")
+  delivered  Boolean         @default(false)
+  type       String          @default("PUSH") // PUSH, SMS, EMAIL
+  sosEvent   SOSEvent        @relation(fields: [sosEventId], references: [id], onDelete: Cascade)
+  contact    TrustedContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@map("emergency_notifications")
+}
+
+model EmergencyLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  event     String
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("emergency_logs")
 }
 
 model Trip {

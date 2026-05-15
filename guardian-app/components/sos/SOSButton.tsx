@@ -43,7 +43,7 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
         // Shrink button slightly
         Animated.spring(scaleAnim, {
           toValue: 0.95,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }).start();
 
         // Start filling the progress ring
@@ -67,7 +67,7 @@ export default function SOSButton({ onTrigger, size = 160 }: SOSButtonProps) {
         // Cancel everything
         Animated.spring(scaleAnim, {
           toValue: 1,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }).start();
         
         Animated.timing(progressAnim, {

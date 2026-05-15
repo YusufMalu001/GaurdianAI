@@ -3,11 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
-
+import { initializeWebSocket } from './websocket/sosSocket.js';
 import authRoutes from './routes/authRoutes.js';
 import safetyRoutes from './routes/safetyRoutes.js';
 import mapRoutes from './routes/mapRoutes.js';
 import emergencyRoutes from './routes/emergencyRoutes.js';
+import contactsRoutes from './routes/contactsRoutes.js';
 import prisma from './lib/prisma.js';
 import { onRealtimeEvent } from './lib/realtime.js';
 
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/safety', safetyRoutes);
 app.use('/api/routes', mapRoutes);
 app.use('/api/emergency', emergencyRoutes);
+app.use('/api/contacts', contactsRoutes);
 
 app.get('/api/health', async (_req, res) => {
   try {
@@ -35,9 +37,18 @@ app.get('/api/health', async (_req, res) => {
 });
 
 const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer });
+
+// Initialize Socket.IO Server (for SOS Live Tracking)
+const io = initializeWebSocket(httpServer);
+
+// Initialize raw WebSocket Server (for generic Realtime Events)
+const wss = new WebSocketServer({ server: httpServer, path: '/' });
 
 const stopRealtimeBridge = onRealtimeEvent((event) => {
+  // Broadcast to Socket.IO
+  io.emit('realtime-event', event);
+  
+  // Broadcast to raw WS
   const payload = JSON.stringify(event);
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -47,10 +58,9 @@ const stopRealtimeBridge = onRealtimeEvent((event) => {
 });
 
 wss.on('connection', (ws, req) => {
-  console.log(`[WS] Client connected from ${req.socket.remoteAddress}`);
-
+  console.log(`[WS] Raw client connected from ${req.socket.remoteAddress}`);
   ws.send(JSON.stringify({ type: 'CONNECTED', data: { message: 'Guardian WS server ready' } }));
-
+  
   ws.on('message', (raw) => {
     try {
       const { type, data } = JSON.parse(raw.toString());
@@ -66,7 +76,7 @@ wss.on('connection', (ws, req) => {
     }
   });
 
-  ws.on('close', () => console.log('[WS] Client disconnected'));
+  ws.on('close', () => console.log('[WS] Raw client disconnected'));
 });
 
 httpServer.listen(PORT, () => {

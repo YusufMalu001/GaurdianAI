@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Shield, Map, Bell, User, Flame } from 'lucide-react-native';
+import { Shield, Map, Bell, User, Flame, Phone } from 'lucide-react-native';
 import { Colors, Theme } from '../../constants/theme';
 import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 
@@ -116,6 +116,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? styles.activeIconContainer : undefined}>
               <User color={color} size={22} strokeWidth={focused ? 2.5 : 2} />
+            </View>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="contacts"
+        options={{
+          title: 'Contacts',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeIconContainer : undefined}>
+              <Phone color={color} size={22} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
         }}
