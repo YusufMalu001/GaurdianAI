@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Audio } from 'expo-av';
 import { Colors, Theme } from '../../constants/theme';
@@ -15,6 +15,8 @@ export default function EmergencyScreen() {
   const [triggered, setTriggered] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [alertId, setAlertId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { user, token } = useAuthStore();
   const { trustedContacts } = useUserStore();
   const { location } = useLocation();
@@ -30,21 +32,21 @@ export default function EmergencyScreen() {
 
       const { recording: newRecording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       setRecording(newRecording);
-    } catch (err) {
-      console.error('Failed to start recording', err);
+    } catch (recordingError) {
+      console.error('Failed to start recording', recordingError);
     }
   }
 
   async function stopRecording() {
     if (!recording) return;
+
     try {
       await recording.stopAndUnloadAsync();
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-      const uri = recording.getURI();
-      console.log('Recording stopped and stored at', uri);
-    } catch (error) {
-      console.error('Failed to stop recording', error);
+    } catch (recordingError) {
+      console.error('Failed to stop recording', recordingError);
     }
+
     setRecording(null);
   }
 
@@ -57,43 +59,68 @@ export default function EmergencyScreen() {
   }, [recording]);
 
   const handleTrigger = () => {
+    setError(null);
     setTriggered(true);
   };
 
+  const resetEmergencyState = () => {
+    stopRecording();
+    setTriggered(false);
+    setCountdown(5);
+    setAlertId(null);
+    setSubmitting(false);
+  };
+
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     if (triggered && countdown > 0) {
-      timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+      timer = setTimeout(() => setCountdown((current) => current - 1), 1000);
     }
 
-    // When countdown reaches 0, fire the real API call
-    if (triggered && countdown === 0 && !alertId) {
+    if (triggered && countdown === 0 && !alertId && !submitting) {
+      if (!user?.id || !token) {
+        setError('Please log in before triggering SOS.');
+        resetEmergencyState();
+        return;
+      }
+
+      setSubmitting(true);
       startRecording();
+
       const lat = location?.lat ?? 28.6139;
       const lng = location?.lng ?? 77.209;
-      emergencyApi.trigger(user?.id ?? 'unknown', lat, lng, token ?? '')
-        .then(res => {
-          setAlertId(res.alert?.id);
-          // Notify trusted contacts
-          const contactIds = trustedContacts.map(c => c.id);
-          if (contactIds.length > 0 && res.alert?.id) {
-            emergencyApi.notifyContacts(contactIds, res.alert.id, token ?? '');
+
+      emergencyApi
+        .trigger(user.id, lat, lng, token)
+        .then(async (response) => {
+          setAlertId(response.alert.id);
+
+          const contactIds = trustedContacts.map((contact) => contact.id);
+          if (contactIds.length > 0) {
+            await emergencyApi.notifyContacts(contactIds, response.alert.id, token);
           }
         })
-        .catch(err => console.error('SOS trigger failed:', err));
+        .catch((apiError) => {
+          setError(apiError instanceof Error ? apiError.message : 'SOS trigger failed');
+          resetEmergencyState();
+        })
+        .finally(() => setSubmitting(false));
     }
 
-    return () => clearTimeout(timer);
-  }, [triggered, countdown]);
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [alertId, countdown, location?.lat, location?.lng, submitting, token, triggered, trustedContacts, user?.id]);
 
   return (
     <SafeAreaView style={[styles.safeArea, triggered && styles.triggeredBg]}>
       <View style={styles.container}>
-        
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.closeBtn} 
+          <TouchableOpacity
+            style={styles.closeBtn}
             onPress={() => router.back()}
             disabled={triggered && countdown === 0}
           >
@@ -101,30 +128,24 @@ export default function EmergencyScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Main Content */}
         <View style={styles.content}>
           {triggered ? (
             <View style={styles.activeState}>
               <ShieldAlert color={Colors.trueWhite} size={80} style={styles.alertIcon} />
-              <Text style={styles.activeTitle}>
-                EMERGENCY ALERT ACTIVE
-              </Text>
-              
+              <Text style={styles.activeTitle}>EMERGENCY ALERT ACTIVE</Text>
+
               {countdown > 0 ? (
                 <>
                   <Text style={styles.desc}>Dispatching authorities in...</Text>
                   <Text style={styles.countdown}>{countdown}</Text>
-                  <ActionButton 
+                  <ActionButton
                     title="CANCEL ALARM"
                     variant="secondary"
                     onPress={() => {
-                      if (alertId) {
-                        emergencyApi.cancel(alertId, token ?? '').catch(console.error);
+                      if (alertId && token) {
+                        emergencyApi.cancel(alertId, token).catch(console.error);
                       }
-                      stopRecording();
-                      setTriggered(false);
-                      setCountdown(5);
-                      setAlertId(null);
+                      resetEmergencyState();
                     }}
                     buttonStyle={styles.cancelBtn}
                     textStyle={styles.cancelText}
@@ -133,7 +154,10 @@ export default function EmergencyScreen() {
               ) : (
                 <>
                   <Text style={styles.reassuringText}>Help is being alerted.</Text>
-                  <Text style={styles.desc}>Live location & audio sharing with Police and {trustedContacts.map(c => c.name).join(', ') || 'Trusted Contacts'} is ACTIVE.</Text>
+                  <Text style={styles.desc}>
+                    Live location and audio sharing with Police and {trustedContacts.map((contact) => contact.name).join(', ') || 'Trusted Contacts'} is active.
+                  </Text>
+                  {submitting ? <ActivityIndicator color={Colors.trueWhite} style={styles.loader} /> : null}
                   <View style={styles.streamingIndicators}>
                     <View style={styles.streamPill}>
                       <Mic color={Colors.trueWhite} size={16} />
@@ -148,21 +172,21 @@ export default function EmergencyScreen() {
                   </View>
                 </>
               )}
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </View>
           ) : (
             <View style={styles.idleState}>
-              <Text style={styles.title}>
-                EMERGENCY
-              </Text>
+              <Text style={styles.title}>EMERGENCY</Text>
               <Text style={styles.desc}>Press and hold to instantly alert authorities and trusted contacts.</Text>
-              
+              {error ? <Text style={styles.idleErrorText}>{error}</Text> : null}
+
               <View style={styles.buttonWrapper}>
                 <SOSButton onTrigger={handleTrigger} size={200} />
               </View>
             </View>
           )}
         </View>
-        
       </View>
     </SafeAreaView>
   );
@@ -174,7 +198,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   triggeredBg: {
-    backgroundColor: '#3E2723', // Deep Chocolate/Brown for emergency
+    backgroundColor: '#3E2723',
   },
   container: {
     flex: 1,
@@ -206,14 +230,17 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.md,
   },
   desc: {
-    color: Colors.white, // In emergency state, white is dark brown, but on dark bg we need real white. 
-    // Wait, I should check the logic: if 'triggered' is true, the container gets 'triggeredBg'.
-    // If 'triggered' is true, I should probably use a style that forces trueWhite.
+    color: Colors.white,
     fontSize: Theme.typography.sizes.md,
     textAlign: 'center',
     paddingHorizontal: Theme.spacing.xl,
     lineHeight: 24,
-    marginBottom: 60,
+    marginBottom: 40,
+  },
+  idleErrorText: {
+    color: Colors.danger,
+    fontSize: Theme.typography.sizes.sm,
+    marginBottom: Theme.spacing.lg,
   },
   buttonWrapper: {
     marginTop: 20,
@@ -258,6 +285,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
   },
+  loader: {
+    marginBottom: Theme.spacing.lg,
+  },
   streamingIndicators: {
     flexDirection: 'row',
     marginTop: Theme.spacing.xl,
@@ -284,5 +314,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  }
+  },
+  errorText: {
+    color: Colors.trueWhite,
+    fontSize: Theme.typography.sizes.sm,
+    marginTop: Theme.spacing.lg,
+    textAlign: 'center',
+  },
 });

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Text, 
-  SafeAreaView, 
+import {
+  View,
+  StyleSheet,
+  Text,
+  SafeAreaView,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
@@ -16,45 +17,47 @@ import GlowText from '../../components/ui/GlowText';
 import { Shield, Fingerprint } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
+import { authApi } from '../../services/api/authApi';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { login } = useAuthStore();
   const { setProfile, setContacts } = useUserStore();
 
-  const handleLogin = () => {
-    // Derive display name from email (e.g. "sarah@gmail.com" → "Sarah")
-    const displayName = email
-      ? email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)
-      : 'User';
+  const handleLogin = async () => {
+    if (!email || !password || submitting) {
+      return;
+    }
 
-    const userData = {
-      id: 'usr_' + Date.now(),
-      name: displayName,
-      email: email || 'user@guardian.app',
-      phone: ''
-    };
+    try {
+      setSubmitting(true);
+      setError(null);
 
-    const profileData = {
-      name: displayName,
-      email: email || 'user@guardian.app',
-      phone: '',
-      totalTrips: 0,
-      safeMiles: 0
-    };
+      const response = await authApi.login(email, password);
+      login(response.user, response.token);
+      setProfile({
+        name: response.user.name,
+        email: response.user.email,
+        phone: response.user.phone,
+        totalTrips: 0,
+        safeMiles: 0,
+      });
+      setContacts([]);
 
-    // Hydrate stores with user-entered data
-    login(userData, 'token_' + Date.now());
-    setProfile(profileData);
-    setContacts([]); // No contacts until user adds them
-
-    router.replace('/(tabs)/home');
+      router.replace('/(tabs)/home');
+    } catch (apiError) {
+      setError(apiError instanceof Error ? apiError.message : 'Login failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
@@ -68,8 +71,8 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>EMAIL OR PHONE</Text>
-            <TextInput 
+            <Text style={styles.label}>EMAIL</Text>
+            <TextInput
               style={styles.input}
               placeholder="Enter your email"
               placeholderTextColor={Colors.white60}
@@ -82,9 +85,9 @@ export default function LoginScreen() {
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>PASSWORD</Text>
-            <TextInput 
+            <TextInput
               style={styles.input}
-              placeholder="••••••••"
+              placeholder="Password"
               placeholderTextColor={Colors.white60}
               value={password}
               onChangeText={setPassword}
@@ -92,15 +95,19 @@ export default function LoginScreen() {
             />
           </View>
 
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
           <TouchableOpacity style={styles.forgotPassword}>
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          <ActionButton 
-            title="SYSTEM OVERRIDE / LOGIN" 
-            onPress={handleLogin} 
+          <ActionButton
+            title={submitting ? 'LOGGING IN...' : 'SYSTEM OVERRIDE / LOGIN'}
+            onPress={handleLogin}
             style={styles.loginBtn}
           />
+
+          {submitting ? <ActivityIndicator color={Colors.teal} style={styles.loader} /> : null}
 
           <View style={styles.divider}>
             <View style={styles.line} />
@@ -108,7 +115,7 @@ export default function LoginScreen() {
             <View style={styles.line} />
           </View>
 
-          <TouchableOpacity style={styles.biometricBtn} onPress={handleLogin}>
+          <TouchableOpacity style={styles.biometricBtn} onPress={handleLogin} disabled={submitting}>
             <Fingerprint color={Colors.purple} size={24} />
             <Text style={styles.biometricText}>Login with Biometrics</Text>
           </TouchableOpacity>
@@ -171,6 +178,11 @@ const styles = StyleSheet.create({
     padding: Theme.spacing.md,
     fontSize: Theme.typography.sizes.md,
   },
+  errorText: {
+    color: Colors.danger,
+    fontSize: Theme.typography.sizes.sm,
+    marginBottom: Theme.spacing.md,
+  },
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: Theme.spacing.xl,
@@ -180,7 +192,10 @@ const styles = StyleSheet.create({
     fontSize: Theme.typography.sizes.sm,
   },
   loginBtn: {
-    marginBottom: Theme.spacing.lg,
+    marginBottom: Theme.spacing.md,
+  },
+  loader: {
+    marginBottom: Theme.spacing.md,
   },
   divider: {
     flexDirection: 'row',

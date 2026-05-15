@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Text, 
-  SafeAreaView, 
+import {
+  View,
+  StyleSheet,
+  Text,
+  SafeAreaView,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Theme } from '../../constants/theme';
@@ -17,43 +18,49 @@ import GlowText from '../../components/ui/GlowText';
 import { ShieldPlus } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
+import { authApi } from '../../services/api/authApi';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { login } = useAuthStore();
   const { setProfile, setContacts } = useUserStore();
 
-  const handleRegister = () => {
-    // Mock user data for registration
-    const newUser = {
-      id: 'usr_' + Math.random().toString(36).substr(2, 9),
-      name: name || 'New User',
-      email: email,
-      phone: phone
-    };
+  const handleRegister = async () => {
+    if (!name || !email || !password || submitting) {
+      return;
+    }
 
-    const newProfile = {
-      name: name || 'New User',
-      email: email,
-      phone: phone,
-      totalTrips: 0,
-      safeMiles: 0
-    };
+    try {
+      setSubmitting(true);
+      setError(null);
 
-    // Hydrate stores
-    login(newUser, 'mock_token_xyz');
-    setProfile(newProfile);
-    setContacts([]); // New user has no contacts yet
+      const response = await authApi.register(name, email, phone, password);
+      login(response.user, response.token);
+      setProfile({
+        name: response.user.name,
+        email: response.user.email,
+        phone: response.user.phone,
+        totalTrips: 0,
+        safeMiles: 0,
+      });
+      setContacts([]);
 
-    router.replace('/(tabs)/home');
+      router.replace('/(tabs)/home');
+    } catch (apiError) {
+      setError(apiError instanceof Error ? apiError.message : 'Registration failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
@@ -69,7 +76,7 @@ export default function RegisterScreen() {
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Text style={styles.label}>FULL NAME</Text>
-              <TextInput 
+              <TextInput
                 style={styles.input}
                 placeholder="Enter your name"
                 placeholderTextColor={Colors.white60}
@@ -80,7 +87,7 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>EMAIL</Text>
-              <TextInput 
+              <TextInput
                 style={styles.input}
                 placeholder="Enter your email"
                 placeholderTextColor={Colors.white60}
@@ -93,7 +100,7 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>EMERGENCY PHONE</Text>
-              <TextInput 
+              <TextInput
                 style={styles.input}
                 placeholder="Enter phone number"
                 placeholderTextColor={Colors.white60}
@@ -105,9 +112,9 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>PASSWORD</Text>
-              <TextInput 
+              <TextInput
                 style={styles.input}
-                placeholder="••••••••"
+                placeholder="Password"
                 placeholderTextColor={Colors.white60}
                 value={password}
                 onChangeText={setPassword}
@@ -115,12 +122,16 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <ActionButton 
-              title="CREATE ACCOUNT" 
-              onPress={handleRegister} 
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <ActionButton
+              title={submitting ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
+              onPress={handleRegister}
               variant="secondary"
               style={styles.registerBtn}
             />
+
+            {submitting ? <ActivityIndicator color={Colors.teal} style={styles.loader} /> : null}
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
@@ -184,9 +195,17 @@ const styles = StyleSheet.create({
     padding: Theme.spacing.md,
     fontSize: Theme.typography.sizes.md,
   },
+  errorText: {
+    color: Colors.danger,
+    fontSize: Theme.typography.sizes.sm,
+    marginBottom: Theme.spacing.md,
+  },
   registerBtn: {
     marginTop: Theme.spacing.lg,
-    marginBottom: Theme.spacing.xl,
+    marginBottom: Theme.spacing.md,
+  },
+  loader: {
+    marginBottom: Theme.spacing.md,
   },
   footer: {
     flexDirection: 'row',

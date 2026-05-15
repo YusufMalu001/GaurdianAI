@@ -6,8 +6,7 @@ import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import { MapPin, Search, Navigation, LocateFixed, AlertCircle } from 'lucide-react-native';
 import { useLocation } from '../../hooks/useLocation';
-
-type Place = { display_name: string; lat: string; lon: string };
+import { routeApi, type PlaceResult } from '../../services/api/routeApi';
 
 const STATIC_MAP_HTML = `
   <!DOCTYPE html>
@@ -22,7 +21,6 @@ const STATIC_MAP_HTML = `
       .custom-soft-marker {
         transition: all 0.3s ease;
       }
-      /* Pulsing dot animation */
       @keyframes pulse {
         0% { box-shadow: 0 0 0 0 rgba(0, 229, 195, 0.7); }
         70% { box-shadow: 0 0 0 15px rgba(0, 229, 195, 0); }
@@ -42,20 +40,11 @@ const STATIC_MAP_HTML = `
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       var map = L.map('map', { zoomControl: true }).setView([28.6139, 77.209], 15);
-      
+
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
         subdomains: 'abcd',
         maxZoom: 20
-      }).addTo(map);
-
-      // Danger Zone Mock
-      L.circle([28.6169, 77.211], {
-        color: 'transparent',
-        fillColor: '${Colors.danger}',
-        fillOpacity: 0.15,
-        radius: 300,
-        weight: 0
       }).addTo(map);
 
       var userMarker, destMarker, routeLayer;
@@ -82,7 +71,7 @@ const STATIC_MAP_HTML = `
         routeLayer = L.geoJSON(geojson, {
           style: { color: '${Colors.teal}', weight: 5, filter: 'drop-shadow(0 0 4px rgba(0, 229, 195, 0.4))' }
         }).addTo(map);
-        
+
         var bounds = routeLayer.getBounds();
         if (userMarker) bounds.extend(userMarker.getLatLng());
         if (destMarker) bounds.extend(destMarker.getLatLng());
@@ -110,11 +99,12 @@ const STATIC_MAP_HTML = `
 export default function MapScreen() {
   const { location, loading, error } = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<Place[]>([]);
+  const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
   const [isNavigating, setIsNavigating] = useState(false);
   const [selectedDestName, setSelectedDestName] = useState('');
   const [eta, setEta] = useState('');
   const [distance, setDistance] = useState('');
+  const [routeError, setRouteError] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
   const [mapReady, setMapReady] = useState(false);
 
@@ -129,105 +119,69 @@ export default function MapScreen() {
     const timer = setTimeout(async () => {
       if (searchQuery.length > 2) {
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&addressdetails=1&limit=5`,
-            {
-              headers: {
-                'User-Agent': 'GuardianSafetyApp/1.0',
-                'Accept': 'application/json',
-              }
-            }
-          );
-          
-          if (!res.ok) {
-            const errorText = await res.text();
-            console.warn(`Search API returned status ${res.status}: ${errorText.substring(0, 100)}`);
-            return;
-          }
-
-          const contentType = res.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const data = await res.json();
-            setSuggestions(data);
-          } else {
-            const text = await res.text();
-            console.error("Search failed: Expected JSON but got", contentType, text.substring(0, 100));
-          }
-        } catch (e) {
-          console.error("Search failed", e);
+          const results = await routeApi.searchPlaces(searchQuery);
+          setSuggestions(results);
+        } catch (searchError) {
+          console.error('Search failed', searchError);
+          setSuggestions([]);
         }
       } else {
         setSuggestions([]);
       }
     }, 500);
+
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleSelectPlace = async (place: Place) => {
+  const handleSelectPlace = async (place: PlaceResult) => {
     Keyboard.dismiss();
     setSearchQuery('');
     setSuggestions([]);
     setSelectedDestName(place.display_name.split(',')[0]);
     setIsNavigating(true);
+    setRouteError(null);
 
-    const destLat = parseFloat(place.lat);
-    const destLng = parseFloat(place.lon);
+    const destLat = Number(place.lat);
+    const destLng = Number(place.lon);
 
-    if (location) {
-      try {
-        const res = await fetch(
-          `https://router.project-osrm.org/route/v1/driving/${location.lng},${location.lat};${destLng},${destLat}?overview=full&geometries=geojson`,
-          {
-            headers: {
-              'Accept': 'application/json',
-            }
-          }
-        );
+    if (!location) {
+      setRouteError('Current location is not available yet.');
+      return;
+    }
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error(`Routing failed with status ${res.status}: ${errorText.substring(0, 100)}`);
-          return;
-        }
+    try {
+      const route = await routeApi.getSafeRoute(location.lat, location.lng, destLat, destLng);
+      setDistance(`${route.distanceKm} km`);
+      setEta(`${route.estimatedTimeMinutes} min`);
 
-        const data = await res.json();
-        
-        if (data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          const distKm = (route.distance / 1000).toFixed(1);
-          const timeMin = Math.round(route.duration / 60);
-          
-          setDistance(`${distKm} km`);
-          setEta(`${timeMin} min`);
-
-          const script = `
-            window.setDestinationMarker(${destLat}, ${destLng});
-            window.drawRoute('${JSON.stringify(route.geometry)}');
-            true;
-          `;
-          webViewRef.current?.injectJavaScript(script);
-        }
-      } catch (err) {
-        console.error("Routing failed", err);
-      }
+      const script = `
+        window.setDestinationMarker(${destLat}, ${destLng});
+        window.drawRoute('${JSON.stringify(route.geometry)}');
+        true;
+      `;
+      webViewRef.current?.injectJavaScript(script);
+    } catch (apiError) {
+      console.error('Routing failed', apiError);
+      setRouteError(apiError instanceof Error ? apiError.message : 'Failed to fetch safe route');
     }
   };
 
   const handleCancelNavigation = () => {
     setIsNavigating(false);
     setSelectedDestName('');
-    webViewRef.current?.injectJavaScript("window.clearRoute(); true;");
+    setEta('');
+    setDistance('');
+    setRouteError(null);
+    webViewRef.current?.injectJavaScript('window.clearRoute(); true;');
   };
 
   const handleCenterUser = () => {
-    webViewRef.current?.injectJavaScript("window.centerOnUser(); true;");
+    webViewRef.current?.injectJavaScript('window.centerOnUser(); true;');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
-        {/* Floating Header */}
         <View style={styles.floatingHeader}>
           {!isNavigating ? (
             <View>
@@ -246,7 +200,7 @@ export default function MapScreen() {
                     renderItem={({ item }) => (
                       <TouchableOpacity style={styles.suggestionItem} onPress={() => handleSelectPlace(item)}>
                         <MapPin color={Colors.teal} size={16} />
-                        <View style={{ marginLeft: 12, flex: 1 }}>
+                        <View style={styles.suggestionContent}>
                           <Text style={styles.suggestionTitle} numberOfLines={1}>
                             {item.display_name.split(',')[0]}
                           </Text>
@@ -263,37 +217,35 @@ export default function MapScreen() {
             </View>
           ) : (
             <GlassCard style={styles.headerCard}>
-              <TouchableOpacity onPress={handleCancelNavigation} style={{ padding: 4 }}>
-                <Text style={{ color: Colors.white60, fontSize: 18 }}>{'<'}</Text>
+              <TouchableOpacity onPress={handleCancelNavigation} style={styles.backButton}>
+                <Text style={styles.backButtonText}>{'<'}</Text>
               </TouchableOpacity>
-              <MapPin color={Colors.teal} size={20} style={{ marginLeft: Theme.spacing.md }} />
+              <MapPin color={Colors.teal} size={20} style={styles.headerIcon} />
               <Text style={styles.headerText} numberOfLines={1}>
-                {selectedDestName || "Unknown Destination"}
+                {selectedDestName || 'Unknown Destination'}
               </Text>
             </GlassCard>
           )}
         </View>
 
-        {/* Map Container */}
         <View style={styles.mapContainer}>
           {Platform.OS === 'web' ? (
-            <iframe 
-              srcDoc={STATIC_MAP_HTML} 
-              style={{ width: '100%', height: '100%', border: 'none' }} 
+            <iframe
+              srcDoc={STATIC_MAP_HTML}
+              style={{ width: '100%', height: '100%', border: 'none' }}
               title="Safe Route Map"
               onLoad={() => setMapReady(true)}
             />
           ) : (
-            <WebView 
-              ref={webViewRef} 
-              source={{ html: STATIC_MAP_HTML }} 
-              style={{ flex: 1 }} 
-              scrollEnabled={false} 
+            <WebView
+              ref={webViewRef}
+              source={{ html: STATIC_MAP_HTML }}
+              style={{ flex: 1 }}
+              scrollEnabled={false}
               onLoadEnd={() => setMapReady(true)}
             />
           )}
 
-          {/* Loading / Error Overlays */}
           {loading && (
             <View style={styles.statusOverlay}>
               <ActivityIndicator size="large" color={Colors.teal} />
@@ -308,8 +260,7 @@ export default function MapScreen() {
             </View>
           )}
 
-          {/* My Location Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.myLocationBtn, { bottom: isNavigating ? 320 : Theme.spacing.xl }]}
             onPress={handleCenterUser}
           >
@@ -317,7 +268,6 @@ export default function MapScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Navigation Info Panel */}
         {isNavigating && (
           <View style={styles.floatingBottom}>
             <GlassCard style={styles.infoCard}>
@@ -327,11 +277,14 @@ export default function MapScreen() {
                   <Text style={styles.routeTitle}>Safe Route (Recommended)</Text>
                   <Text style={styles.routeEta}>{eta || '-- min'}</Text>
                 </View>
-                <Text style={styles.routeDesc}>{distance || '-- km'} • Avoids known dark zones</Text>
+                <Text style={styles.routeDesc}>
+                  {distance || '-- km'} • Prioritizes lower-risk segments and known incident avoidance
+                </Text>
+                {routeError ? <Text style={styles.routeError}>{routeError}</Text> : null}
               </View>
-              
+
               <View style={styles.divider} />
-              
+
               <TouchableOpacity style={styles.startNavBtn}>
                 <Navigation color={Colors.white} size={20} />
                 <Text style={styles.startNavText}>START NAVIGATION</Text>
@@ -339,7 +292,6 @@ export default function MapScreen() {
             </GlassCard>
           </View>
         )}
-
       </View>
     </SafeAreaView>
   );
@@ -373,6 +325,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
   },
+  suggestionContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
   suggestionTitle: {
     color: Colors.white,
     fontSize: Theme.typography.sizes.md,
@@ -387,6 +343,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Theme.spacing.sm,
+  },
+  backButton: {
+    padding: 4,
+  },
+  backButtonText: {
+    color: Colors.white60,
+    fontSize: 18,
+  },
+  headerIcon: {
+    marginLeft: Theme.spacing.md,
   },
   headerText: {
     marginLeft: Theme.spacing.md,
@@ -484,6 +450,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 20,
     marginTop: 4,
+  },
+  routeError: {
+    color: Colors.danger,
+    fontSize: 12,
+    marginLeft: 20,
+    marginTop: Theme.spacing.sm,
   },
   divider: {
     height: 1,

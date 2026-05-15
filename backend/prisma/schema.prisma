@@ -1,0 +1,101 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String             @id @default(uuid())
+  name            String
+  email           String             @unique
+  phone           String?
+  passwordHash    String             @map("password_hash")
+  avatarUrl       String?            @map("avatar_url")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  trustedContacts TrustedContact[]
+  incidents       Incident[]
+  emergencyAlerts EmergencyAlert[]
+  trips           Trip[]
+
+  @@map("users")
+}
+
+model TrustedContact {
+  id                 String              @id @default(uuid())
+  userId             String              @map("user_id")
+  name               String
+  phone              String
+  relation           String?
+  createdAt          DateTime            @default(now()) @map("created_at")
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertNotifications AlertNotification[]
+
+  @@map("trusted_contacts")
+}
+
+model Incident {
+  id          String    @id @default(uuid())
+  userId      String?   @map("user_id")
+  lat         Float
+  lng         Float
+  type        String
+  description String?
+  riskLevel   String    @default("MEDIUM") @map("risk_level")
+  reportedAt  DateTime  @default(now()) @map("reported_at")
+  verified    Boolean   @default(false)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([lat, lng], map: "idx_incidents_location")
+  @@map("incidents")
+}
+
+model EmergencyAlert {
+  id                 String              @id @default(uuid())
+  userId             String              @map("user_id")
+  lat                Float
+  lng                Float
+  status             String              @default("ACTIVE")
+  triggeredAt        DateTime            @default(now()) @map("triggered_at")
+  resolvedAt         DateTime?           @map("resolved_at")
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertNotifications AlertNotification[]
+
+  @@index([userId], map: "idx_alerts_user")
+  @@map("emergency_alerts")
+}
+
+model AlertNotification {
+  id        String          @id @default(uuid())
+  alertId   String          @map("alert_id")
+  contactId String?         @map("contact_id")
+  sentAt    DateTime        @default(now()) @map("sent_at")
+  delivered Boolean         @default(false)
+  alert     EmergencyAlert  @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  contact   TrustedContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@map("alert_notifications")
+}
+
+model Trip {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  originLat       Float?    @map("origin_lat")
+  originLng       Float?    @map("origin_lng")
+  destLat         Float?    @map("dest_lat")
+  destLng         Float?    @map("dest_lng")
+  safetyScore     Int?      @map("safety_score")
+  distanceKm      Decimal?  @map("distance_km") @db.Decimal(8, 2)
+  durationMinutes Int?      @map("duration_minutes")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_trips_user")
+  @@map("trips")
+}
