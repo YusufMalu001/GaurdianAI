@@ -2,7 +2,7 @@
 
 GuardianAI is an end-to-end, real-time personal safety and risk assessment platform. It combines a mobile application for end-users, a robust Node.js backend, and a Python-powered AI Engine to provide real-time SOS tracking, dynamic safe route optimization, and proactive risk classification.
 
-## 🚀 Features
+##  Features
 
 - **Real-Time SOS Ecosystem**: Immediate emergency triggering with WebSocket-based live GPS tracking.
 - **AI-Driven Risk Assessment**: Predictive safety scoring based on historical data, crowd density, and geographical features.
@@ -10,7 +10,7 @@ GuardianAI is an end-to-end, real-time personal safety and risk assessment platf
 - **Trusted Contacts**: Automated notifications and live location sharing with designated emergency contacts.
 - **Data Simulation & Pipeline**: Robust synthetic data generation and processing for AI model training and testing.
 
-## 🏗️ System Architecture
+##  System Architecture
 
 The project is divided into four main microservices/modules:
 
@@ -34,7 +34,7 @@ Scripts and utilities for handling dataset operations.
 - **Tech Stack**: Python, Faker, Pandas.
 - **Role**: Generates synthetic demographic and incident data, processes raw datasets, and seeds the PostgreSQL database.
 
-## 🛠️ Installation & Setup
+##  Installation & Setup
 
 ### Prerequisites
 - Node.js (v18+)
@@ -76,7 +76,7 @@ pip install -r requirements.txt
 python seed_database.py
 ```
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
@@ -84,6 +84,6 @@ python seed_database.py
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 🛡️ License
+##  License
 
 Distributed under the MIT License.
